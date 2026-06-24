@@ -856,10 +856,18 @@ pub(crate) mod test {
         }};
     }
 
-    // FIXME: This fails between 3:50-4:00 GMT
     #[test]
     fn new_limited_by_reviews() -> Result<()> {
         let (mut col, cids) = v3_test_collection(4)?;
+        // Answering "good" puts the new card into intraday learning with a
+        // 10-minute step. If the current time is within that step of the day
+        // rollover (e.g. 3:50-4:00 GMT for the default 4:00 cutoff in a
+        // UTC-local test collection), the learning card becomes due after the
+        // cutoff and is no longer counted today, breaking the learn_count
+        // assertions below. Skip in that window, as the elapsed_secs test does.
+        if col.timing_today()?.near_cutoff() {
+            return Ok(());
+        }
         col.set_due_date(&cids[0..2], "0", None)?;
         // set a limit of 3 reviews, which should give us 2 reviews and 1 new card
         let mut conf = col.get_deck_config(DeckConfigId(1), false)?.unwrap();
