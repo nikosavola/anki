@@ -17,8 +17,8 @@ in sync if you change the seed schema.
 
 from __future__ import annotations
 
+import json
 import os
-import pickle
 import random
 import signal
 import sqlite3
@@ -70,11 +70,11 @@ def _seed_prefs(base: Path) -> None:
     )
     conn.execute(
         "insert into profiles values ('_global', ?)",
-        (pickle.dumps(meta, protocol=4),),
+        (json.dumps(meta).encode("utf-8"),),
     )
     conn.execute(
         "insert into profiles values (?, ?)",
-        (TEST_PROFILE, pickle.dumps(profile, protocol=4)),
+        (TEST_PROFILE, json.dumps(profile).encode("utf-8")),
     )
     conn.commit()
     conn.close()
