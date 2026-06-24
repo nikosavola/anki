@@ -229,6 +229,7 @@ class AVPlayer:
         if not self.current_caller_interrupted:
             self.current_caller = None
         self.current_caller_interrupted = False
+        assert self.current_player is not None
         gui_hooks.av_player_did_end_playing(self.current_player)
         self.current_player = None
         self._play_next_if_idle()
@@ -352,6 +353,7 @@ class SimpleProcessPlayer(Player):
     # note: mplayer implementation overrides this
     def _play(self, tag: AVTag) -> None:
         assert isinstance(tag, SoundOrVideoTag)
+        assert self._media_folder is not None
         self._process = subprocess.Popen(
             self.args + ["--", tag.path(self._media_folder)],
             env=self.env,
@@ -367,6 +369,7 @@ class SimpleProcessPlayer(Player):
         )
 
         while True:
+            assert self._process is not None
             # should we abort playing?
             if self._terminate_flag:
                 self._process.terminate()
@@ -442,6 +445,8 @@ class SimpleMplayerPlayer(SimpleProcessPlayer, SoundOrVideoPlayer):
 
 
 class MpvManager(MPV, SoundOrVideoPlayer):
+    mpv_version: tuple[int, int, int] | None = None
+
     if not is_lin:
         default_argv = MPVBase.default_argv + [
             "--input-media-keys=no",
@@ -547,7 +552,7 @@ class SimpleMplayerSlaveModePlayer(SimpleMplayerPlayer):
 
         The trailing newline is automatically added."""
         str_args = [str(x) for x in args]
-        if self._process:
+        if self._process and self._process.stdin:
             self._process.stdin.write(" ".join(str_args).encode("utf8") + b"\n")
             self._process.stdin.flush()
 
@@ -671,11 +676,13 @@ class QtAudioInputRecorder(Recorder):
 
     def start(self, on_done: Callable[[], None]) -> None:
         self._iodevice = self._audio_input.start()
+        assert self._iodevice is not None
         self._buffer = bytearray()
         qconnect(self._iodevice.readyRead, self._on_read_ready)
         super().start(on_done)
 
     def _on_read_ready(self) -> None:
+        assert self._iodevice is not None
         self._buffer.extend(cast(bytes, self._iodevice.readAll()))
 
     def stop(self, on_done: Callable[[str], None]) -> None:
@@ -800,10 +807,12 @@ class RecordDialog(QDialog):
         v.addWidget(b)
         self.setLayout(v)
         save_button = b.button(QDialogButtonBox.StandardButton.Save)
+        assert save_button is not None
         save_button.setDefault(True)
         save_button.setAutoDefault(True)
         qconnect(save_button.clicked, self.accept)
         cancel_button = b.button(QDialogButtonBox.StandardButton.Cancel)
+        assert cancel_button is not None
         cancel_button.setDefault(False)
         cancel_button.setAutoDefault(False)
         qconnect(cancel_button.clicked, self.reject)

@@ -44,12 +44,11 @@ class DeckConf(QDialog):
             self.form.buttonBox.helpRequested, lambda: openHelp(HelpPage.DECK_OPTIONS)
         )
         qconnect(self.form.confOpts.clicked, self.confOpts)
-        qconnect(
-            self.form.buttonBox.button(
-                QDialogButtonBox.StandardButton.RestoreDefaults
-            ).clicked,
-            self.onRestore,
+        restore_button = self.form.buttonBox.button(
+            QDialogButtonBox.StandardButton.RestoreDefaults
         )
+        assert restore_button is not None
+        qconnect(restore_button.clicked, self.onRestore)
         self.setWindowTitle(
             without_unicode_isolation(tr.actions_options_for(val=self.deck["name"]))
         )
@@ -95,12 +94,16 @@ class DeckConf(QDialog):
     def confOpts(self) -> None:
         m = QMenu(self.mw)
         a = m.addAction(tr.actions_add())
+        assert a is not None
         qconnect(a.triggered, self.addGroup)
         a = m.addAction(tr.actions_delete())
+        assert a is not None
         qconnect(a.triggered, self.remGroup)
         a = m.addAction(tr.actions_rename())
+        assert a is not None
         qconnect(a.triggered, self.renameGroup)
         a = m.addAction(tr.scheduling_set_for_all_subdecks())
+        assert a is not None
         qconnect(a.triggered, self.setChildren)
         if not self.childDids:
             a.setEnabled(False)
@@ -130,6 +133,7 @@ class DeckConf(QDialog):
         # first, save currently entered data to current conf
         self.saveConf()
         # then clone the conf
+        assert self.conf is not None
         id = self.mw.col.decks.add_config_returning_id(name, clone_from=self.conf)
         gui_hooks.deck_conf_did_add_config(self, self.deck, self.conf, name, id)
         # set the deck to the new conf
@@ -138,6 +142,7 @@ class DeckConf(QDialog):
         self.loadConfs()
 
     def remGroup(self) -> None:
+        assert self.conf is not None
         if int(self.conf["id"]) == 1:
             showInfo(tr.scheduling_the_default_configuration_cant_be_removed(), self)
         else:
@@ -149,6 +154,7 @@ class DeckConf(QDialog):
             self.loadConfs()
 
     def renameGroup(self) -> None:
+        assert self.conf is not None
         old = self.conf["name"]
         name = getOnlyText(tr.actions_new_name(), default=old)
         if not name or name == old:
@@ -164,6 +170,7 @@ class DeckConf(QDialog):
             return
         for did in self.childDids:
             deck = self.mw.col.decks.get(did)
+            assert deck is not None
             if deck["dyn"]:
                 continue
             deck["conf"] = self.deck["conf"]
@@ -234,6 +241,7 @@ class DeckConf(QDialog):
         gui_hooks.deck_conf_did_load_config(self, self.deck, self.conf)
 
     def onRestore(self) -> None:
+        assert self.conf is not None
         self.mw.progress.start()
         self.mw.col.decks.restore_to_default(self.conf)
         self.mw.progress.finish()
@@ -243,6 +251,7 @@ class DeckConf(QDialog):
     ##################################################
 
     def onNewOrderChanged(self, new: bool) -> None:
+        assert self.conf is not None
         old = self.conf["new"]["order"]
         if old == new:
             return
@@ -277,6 +286,7 @@ class DeckConf(QDialog):
         conf[key] = ret
 
     def saveConf(self) -> None:
+        assert self.conf is not None
         # new
         c = self.conf["new"]
         f = self.form

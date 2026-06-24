@@ -101,11 +101,13 @@ class MainWebView(AnkiWebView):
     # Importing files via drag & drop
     ##########################################################################
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+    def dragEnterEvent(self, event: QDragEnterEvent | None) -> None:
+        if event is None:
+            return
         if self.mw.state != "deckBrowser":
             return super().dragEnterEvent(event)
         mime = event.mimeData()
-        if not mime.hasUrls():
+        if mime is None or not mime.hasUrls():
             return
         for url in mime.urls():
             path = url.toLocalFile()
@@ -113,13 +115,17 @@ class MainWebView(AnkiWebView):
                 return
         event.accept()
 
-    def dropEvent(self, event: QDropEvent) -> None:
+    def dropEvent(self, event: QDropEvent | None) -> None:
         import aqt.importing
         from aqt.import_export.importing import import_file
 
+        if event is None:
+            return
         if self.mw.state != "deckBrowser":
             return super().dropEvent(event)
         mime = event.mimeData()
+        if mime is None:
+            return
         paths = [url.toLocalFile() for url in mime.urls()]
         deck_paths = filter(lambda p: not p.endswith(".colpkg"), paths)
         for path in deck_paths:
@@ -136,6 +142,9 @@ class MainWebView(AnkiWebView):
     def eventFilter(self, obj: QObject | None, evt: QEvent | None) -> bool:
         if handled := super().eventFilter(obj, evt):
             return handled
+
+        if evt is None:
+            return False
 
         if evt.type() == QEvent.Type.Leave:
             handled_leave = False
@@ -181,7 +190,7 @@ class AnkiQt(QMainWindow):
         self.backend = backend
         self.state: MainWindowState = "startup"
         self.opts = opts
-        self.col: Collection | None = None
+        self.col = None  # type: ignore[assignment]
         self.taskman = TaskManager(self)
         self.media_syncer = MediaSyncer(self)
         aqt.mw = self
@@ -220,7 +229,7 @@ class AnkiQt(QMainWindow):
         self.progress.single_shot(10, on_window_init, False)
 
     def setupUI(self) -> None:
-        self.col = None
+        self.col = None  # type: ignore[assignment]
         self.disable_automatic_garbage_collection()
         self.setupAppMsg()
         self.setupKeys()
@@ -280,10 +289,11 @@ class AnkiQt(QMainWindow):
         onClose = pyqtSignal()
         closeFires = True
 
-        def closeEvent(self, evt: QCloseEvent) -> None:
+        def closeEvent(self, evt: QCloseEvent | None) -> None:
             if self.closeFires:
                 self.onClose.emit()  # type: ignore
-            evt.accept()
+            if evt is not None:
+                evt.accept()
 
         def closeWithoutQuitting(self) -> None:
             self.closeFires = False
@@ -316,7 +326,7 @@ class AnkiQt(QMainWindow):
             self.loadProfile()
 
     def showProfileManager(self) -> None:
-        self.pm.profile = None
+        self.pm.profile = None  # type: ignore[assignment]
         self.moveToState("profileManager")
         d = self.profileDiag = self.ProfileManager()
         f = self.profileForm = aqt.forms.profiles.Ui_MainWindow()
@@ -347,6 +357,7 @@ class AnkiQt(QMainWindow):
         profs = self.pm.profiles()
         f.profiles.addItems(profs)
         try:
+            assert self.pm.name is not None
             idx = profs.index(self.pm.name)
         except Exception:
             idx = 0
@@ -404,6 +415,7 @@ class AnkiQt(QMainWindow):
         self.refreshProfilesList()
 
     def onRemProfile(self) -> None:
+        assert self.pm.name is not None
         profs = self.pm.profiles()
         if len(profs) < 2:
             showWarning(tr.qt_misc_there_must_be_at_least_one())
@@ -650,7 +662,7 @@ class AnkiQt(QMainWindow):
                 self.backend.close_collection(downgrade_to_schema11=False)
             except Exception as e:
                 print("unable to close collection:", e)
-            self.col = None
+            self.col = None  # type: ignore[assignment]
             # return to profile manager
             self.hide()
             self.showProfileManager()
@@ -706,6 +718,7 @@ class AnkiQt(QMainWindow):
         try:
             self.maybeOptimize()
             if not dev_mode:
+                assert self.col.db is not None
                 corrupt = self.col.db.scalar("pragma quick_check") != "ok"
         except Exception:
             corrupt = True
@@ -726,7 +739,7 @@ class AnkiQt(QMainWindow):
             print(e)
             corrupt = True
         finally:
-            self.col = None
+            self.col = None  # type: ignore[assignment]
             self.progress.finish()
 
         if corrupt:
@@ -1235,15 +1248,17 @@ title="{}" {}>{}</button>""".format(
     # App exit
     ##########################################################################
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent | None) -> None:
         if self.state == "profileManager":
             # if profile manager active, this event may fire via OS X menu bar's
             # quit option
             self.profileDiag.close()
-            event.accept()
+            if event is not None:
+                event.accept()
         else:
             # ignore the event for now, as we need time to clean up
-            event.ignore()
+            if event is not None:
+                event.ignore()
             self.unloadProfileAndExit()
 
     # Undo & autosave
@@ -1481,6 +1496,7 @@ title="{}" {}>{}</button>""".format(
             return
         else:
             window = self.app.activeWindow()
+            assert window is not None
             window.setWindowState(
                 window.windowState() ^ Qt.WindowState.WindowFullScreen
             )
@@ -1664,6 +1680,7 @@ title="{}" {}>{}</button>""".format(
                 f.write(b"#guid column:1\n")
                 f.write(b"#notetype column:2\n")
                 f.write(b"#nid\tmid\tfields\n")
+            assert col.db is not None
             for id, mid, flds in col.db.execute(
                 f"select id, mid, flds from notes where id in {ids2str(nids)}"
             ):
@@ -1715,6 +1732,7 @@ title="{}" {}>{}</button>""".format(
             if not ret.name:
                 return
             deck_id = self.col.decks.id(ret.name)
+            assert deck_id is not None
             set_current_deck(parent=self, deck_id=deck_id).success(
                 lambda out: self.moveToState("overview")
             ).run_in_background()

@@ -244,14 +244,17 @@ class Collection(DeprecatedNamesMixin):
 
     @property
     def crt(self) -> int:
+        assert self.db is not None
         return self.db.scalar("select crt from col")
 
     @crt.setter
     def crt(self, crt: int) -> None:
+        assert self.db is not None
         self.db.execute("update col set crt = ?", crt)
 
     @property
     def mod(self) -> int:
+        assert self.db is not None
         return self.db.scalar("select mod from col")
 
     @deprecated(info="saving is automatic")
@@ -301,6 +304,7 @@ class Collection(DeprecatedNamesMixin):
             self._load_scheduler()
 
     def set_schema_modified(self) -> None:
+        assert self.db is not None
         self.db.execute("update col set scm=?", int_time(1000))
 
     def mod_schema(self, check: bool) -> None:
@@ -312,10 +316,12 @@ class Collection(DeprecatedNamesMixin):
 
     def schema_changed(self) -> bool:
         "True if schema changed since last sync."
+        assert self.db is not None
         return self.db.scalar("select scm > ls from col")
 
     def usn(self) -> int:
         if self.server:
+            assert self.db is not None
             return self.db.scalar("select usn from col")
         else:
             return -1
@@ -431,6 +437,7 @@ class Collection(DeprecatedNamesMixin):
     ##########################################################################
 
     def get_image_for_occlusion(self, path: str | None) -> GetImageForOcclusionResponse:
+        assert path is not None
         return self._backend.get_image_for_occlusion(path=path)
 
     def add_image_occlusion_notetype(self) -> None:
@@ -458,6 +465,7 @@ class Collection(DeprecatedNamesMixin):
     def get_image_occlusion_note(
         self, note_id: int | None
     ) -> GetImageOcclusionNoteResponse:
+        assert note_id is not None
         return self._backend.get_image_occlusion_note(note_id=note_id)
 
     def update_image_occlusion_note(
@@ -468,6 +476,11 @@ class Collection(DeprecatedNamesMixin):
         back_extra: str | None,
         tags: list[str] | None,
     ) -> OpChanges:
+        assert note_id is not None
+        assert occlusions is not None
+        assert header is not None
+        assert back_extra is not None
+        assert tags is not None
         return self._backend.update_image_occlusion_note(
             note_id=note_id,
             occlusions=occlusions,
@@ -557,6 +570,7 @@ class Collection(DeprecatedNamesMixin):
 
     def remove_notes_by_card(self, card_ids: list[CardId]) -> None:
         if hooks.notes_will_be_deleted.count():
+            assert self.db is not None
             nids = self.db.list(
                 f"select nid from cards where id in {ids2str(card_ids)}"
             )
@@ -598,15 +612,18 @@ class Collection(DeprecatedNamesMixin):
         )
 
     def note_count(self) -> int:
+        assert self.db is not None
         return self.db.scalar("select count() from notes")
 
     # Cards
     ##########################################################################
 
     def is_empty(self) -> bool:
+        assert self.db is not None
         return not self.db.scalar("select 1 from cards limit 1")
 
     def card_count(self) -> Any:
+        assert self.db is not None
         return self.db.scalar("select count() from cards")
 
     def remove_cards_and_orphaned_notes(
@@ -691,25 +708,32 @@ class Collection(DeprecatedNamesMixin):
     ) -> search_pb2.SortOrder:
         if isinstance(order, str):
             return search_pb2.SortOrder(custom=order)
+        resolved_order: bool | str | BrowserColumns.Column | None = order
         if isinstance(order, bool):
             if order is False:
                 return search_pb2.SortOrder(none=generic_pb2.Empty())
             # order=True: set args to sort column and reverse from config
             sort_key = BrowserConfig.sort_column_key(finding_notes)
-            order = self.get_browser_column(self.get_config(sort_key))
+            resolved_order = self.get_browser_column(self.get_config(sort_key))
             reverse_key = BrowserConfig.sort_backwards_key(finding_notes)
             reverse = self.get_config(reverse_key)
         if (
-            isinstance(order, BrowserColumns.Column)
-            and (order.sorting_notes if finding_notes else order.sorting_cards)
+            isinstance(resolved_order, BrowserColumns.Column)
+            and (
+                resolved_order.sorting_notes
+                if finding_notes
+                else resolved_order.sorting_cards
+            )
             is not BrowserColumns.SORTING_NONE
         ):
             return search_pb2.SortOrder(
-                builtin=search_pb2.SortOrder.Builtin(column=order.key, reverse=reverse)
+                builtin=search_pb2.SortOrder.Builtin(
+                    column=resolved_order.key, reverse=reverse
+                )
             )
 
         # eg, user is ordering on an add-on field with the add-on not installed
-        print(f"{order} is not a valid sort order.")
+        print(f"{resolved_order} is not a valid sort order.")
         return search_pb2.SortOrder(none=generic_pb2.Empty())
 
     def find_and_replace(
@@ -748,12 +772,14 @@ class Collection(DeprecatedNamesMixin):
         def ord_for_mid(mid: NotetypeId) -> int:
             if mid not in fields:
                 model = self.models.get(mid)
+                assert model is not None
                 for idx, field in enumerate(model["flds"]):
                     if field["name"].lower() == field_name.lower():
                         fields[mid] = idx
                         break
             return fields[mid]
 
+        assert self.db is not None
         for nid, mid, flds in self.db.all(
             f"select id, mid, flds from notes where id in {ids2str(nids)}"
         ):
@@ -1106,6 +1132,7 @@ class Collection(DeprecatedNamesMixin):
         return ("\n".join(problems), ok)
 
     def optimize(self) -> None:
+        assert self.db is not None
         self.db.execute("vacuum")
         self.db.execute("analyze")
 
@@ -1246,7 +1273,9 @@ class Collection(DeprecatedNamesMixin):
 
     # @deprecated(replaced_by=add_note)
     def addNote(self, note: Note) -> int:
-        self.add_note(note, note.note_type()["did"])
+        note_type = note.note_type()
+        assert note_type is not None
+        self.add_note(note, note_type["did"])
         return len(note.cards())
 
     @deprecated(replaced_by=remove_notes)
@@ -1285,6 +1314,7 @@ class Collection(DeprecatedNamesMixin):
 
     @deprecated(info="handled by backend")
     def _logRem(self, ids: list[int | NoteId], type: int) -> None:
+        assert self.db is not None
         self.db.executemany(
             "insert into graves values (%d, ?, %d)" % (self.usn(), type),
             ([x] for x in ids),

@@ -2,12 +2,15 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 
+from __future__ import annotations
+
 import re
 import time
-from typing import cast
+from typing import Any, cast
 
 from anki.db import DB
 from anki.importing.noteimp import ForeignCard, ForeignNote, NoteImporter
+from anki.models import NotetypeDict
 from anki.stdmodels import _legacy_add_basic_model, _legacy_add_cloze_model
 
 
@@ -16,7 +19,7 @@ class MnemosyneImporter(NoteImporter):
     update = False
     allowHTML = True
 
-    def run(self):
+    def run(self) -> None:
         db = DB(self.file)
         ver = db.scalar("select value from global_variables where key='version'")
         if not ver.startswith("Mnemosyne SQL 1") and ver not in ("2", "3"):
@@ -103,10 +106,10 @@ acq_reps+ret_reps, lapses, card_type_id from cards"""
         self.total += total
         self.log.append(self.col.tr.importing_note_imported(count=self.total))
 
-    def fields(self):
+    def fields(self) -> int:
         return self._fields
 
-    def _mungeField(self, fld):
+    def _mungeField(self, fld: str) -> str:
         # \n -> br
         fld = re.sub("\r?\n", "<br>", fld)
         # latex differences
@@ -115,7 +118,12 @@ acq_reps+ret_reps, lapses, card_type_id from cards"""
         fld = re.sub('<audio src="(.+?)">(</audio>)?', "[sound:\\1]", fld)
         return fld
 
-    def _addFronts(self, notes, model=None, fields=("f", "b")):
+    def _addFronts(
+        self,
+        notes: list[dict[str, Any]],
+        model: NotetypeDict | None = None,
+        fields: tuple[str, ...] = ("f", "b"),
+    ) -> None:
         data = []
         for orig in notes:
             # create a foreign note object
@@ -140,7 +148,7 @@ acq_reps+ret_reps, lapses, card_type_id from cards"""
         # import
         self.importNotes(data)
 
-    def _addFrontBacks(self, notes):
+    def _addFrontBacks(self, notes: list[dict[str, Any]]) -> None:
         m = _legacy_add_basic_model(self.col)
         m["name"] = "Mnemosyne-FrontBack"
         mm = self.col.models
@@ -150,7 +158,7 @@ acq_reps+ret_reps, lapses, card_type_id from cards"""
         mm.add_template(m, t)
         self._addFronts(notes, m)
 
-    def _addVocabulary(self, notes):
+    def _addVocabulary(self, notes: list[dict[str, Any]]) -> None:
         mm = self.col.models
         m = mm.new("Mnemosyne-Vocabulary")
         for f in "Expression", "Pronunciation", "Meaning", "Notes":
@@ -171,10 +179,10 @@ acq_reps+ret_reps, lapses, card_type_id from cards"""
         mm.add(m)
         self._addFronts(notes, m, fields=("f", "p_1", "m_1", "n"))
 
-    def _addCloze(self, notes):
+    def _addCloze(self, notes: dict[Any, dict[str, Any]]) -> None:
         data = []
-        notes = list(notes.values())
-        for orig in notes:
+        note_list = list(notes.values())
+        for orig in note_list:
             # create a foreign note object
             n = ForeignNote()
             n.fields = []
@@ -182,7 +190,7 @@ acq_reps+ret_reps, lapses, card_type_id from cards"""
             fld = re.sub("\r?\n", "<br>", fld)
             state = dict(n=1)
 
-            def repl(match):
+            def repl(match: re.Match[str]) -> str:
                 # replace [...] with cloze refs
                 res = "{{c%d::%s}}" % (state["n"], match.group(1))
                 state["n"] += 1

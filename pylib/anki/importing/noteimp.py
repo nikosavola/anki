@@ -107,6 +107,7 @@ class NoteImporter(Importer):
         self.mapping = flds
 
     def mappingOk(self) -> bool:
+        assert self.mapping is not None
         return self.model["flds"][0]["name"] in self.mapping
 
     def foreignNotes(self) -> list:
@@ -117,6 +118,8 @@ class NoteImporter(Importer):
         "Convert each card into a note, apply attributes and add to col."
         if not self.mappingOk():
             raise Exception("mapping not ok")
+        assert self.mapping is not None
+        assert self.col.db is not None
         # note whether tags are mapped
         self._tagsMapped = False
         for f in self.mapping:
@@ -261,6 +264,7 @@ class NoteImporter(Importer):
             tuple[NoteId, str, NotetypeId, int, int, str, str, str, int, int, str]
         ],
     ) -> None:
+        assert self.col.db is not None
         self.col.db.executemany(
             "insert or replace into notes values (?,?,?,?,?,?,?,?,?,?,?)", rows
         )
@@ -282,6 +286,7 @@ class NoteImporter(Importer):
                 tags,
             )
         elif self.tagModified:
+            assert self.col.db is not None
             tags = self.col.db.scalar("select tags from notes where id = ?", id)
             tagList = self.col.tags.split(tags) + self.tagModified.split()
             tags = self.col.tags.join(tagList)
@@ -290,6 +295,7 @@ class NoteImporter(Importer):
             return (int_time(), self.col.usn(), n.fieldsStr, id, n.fieldsStr)
 
     def addUpdates(self, rows: list[Updates]) -> None:
+        assert self.col.db is not None
         changes = self.col.db.scalar("select total_changes()")
         if self._tagsMapped:
             self.col.db.executemany(
@@ -318,6 +324,7 @@ where id = ? and flds != ?""",
     def processFields(self, note: ForeignNote, fields: list[str] | None = None) -> None:
         if not fields:
             fields = [""] * len(self.model["flds"])
+        assert self.mapping is not None
         for c, f in enumerate(self.mapping):
             if not f:
                 continue
@@ -337,6 +344,7 @@ where id = ? and flds != ?""",
         for nid, ord, c in self._cards:
             data.append((c.ivl, c.due, c.factor, c.reps, c.lapses, nid, ord))
         # we assume any updated cards are reviews
+        assert self.col.db is not None
         self.col.db.executemany(
             """
 update cards set type = 2, queue = 2, ivl = ?, due = ?,

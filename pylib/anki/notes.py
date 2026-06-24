@@ -50,6 +50,7 @@ class Note(DeprecatedNamesMixin):
             self.load()
         else:
             # new note for provided notetype
+            assert notetype_id is not None
             self._load_from_backend_note(self.col._backend.new_note(notetype_id))
 
     def load(self) -> None:
@@ -65,7 +66,9 @@ class Note(DeprecatedNamesMixin):
         self.usn = note.usn
         self.tags = list(note.tags)
         self.fields = list(note.fields)
-        self._fmap = self.col.models.field_map(self.note_type())
+        note_type = self.note_type()
+        assert note_type is not None
+        self._fmap = self.col.models.field_map(note_type)
 
     def _to_backend_note(self) -> notes_pb2.Note:
         hooks.note_will_flush(self)

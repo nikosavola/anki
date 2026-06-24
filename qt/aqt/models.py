@@ -111,6 +111,7 @@ class Models(QDialog):
 
         for label, func in gui_hooks.models_did_init_buttons(default_buttons, self):
             button = box.addButton(label, QDialogButtonBox.ButtonRole.ActionRole)
+            assert button is not None
             qconnect(button.clicked, func)
 
         qconnect(f.modelsList.itemDoubleClicked, self.onRename)
@@ -161,7 +162,9 @@ class Models(QDialog):
 
     def current_notetype(self) -> NotetypeDict:
         row = self.form.modelsList.currentRow()
-        return self.mm.get(NotetypeId(self.models[row].id))
+        notetype = self.mm.get(NotetypeId(self.models[row].id))
+        assert notetype is not None
+        return notetype
 
     def onAdd(self) -> None:
         def on_success(notetype: NotetypeDict) -> None:
@@ -302,10 +305,12 @@ class AddModel(QDialog):
             self.model = self.mw.col.models.copy(model, add=False)
         else:
             self.model = model(self.col)
+        assert self.model is not None
+        model = self.model
         QDialog.accept(self)
         # On mac, we need to allow time for the existing modal to close or
         # Qt gets confused.
-        self.mw.progress.single_shot(100, lambda: self.on_success(self.model), True)
+        self.mw.progress.single_shot(100, lambda: self.on_success(model), True)
 
     def onHelp(self) -> None:
         openHelp(HelpPage.ADDING_A_NOTE_TYPE)

@@ -13,7 +13,7 @@ from tests.shared import errorsAfterMidnight
 from tests.shared import getEmptyCol as getEmptyColOrig
 
 
-def getEmptyCol():
+def getEmptyCol() -> Collection:
     col = getEmptyColOrig()
     col.upgrade_to_v2_scheduler()
     return col
@@ -23,7 +23,7 @@ col: Collection | None = None
 testDir = os.path.dirname(__file__)
 
 
-def setup1():
+def setup1() -> None:
     global col
     col = getEmptyCol()
     note = col.newNote()
@@ -36,6 +36,7 @@ def setup1():
     note["Front"] = "baz"
     note["Back"] = "qux"
     note_type = note.note_type()
+    assert note_type is not None
     note_type["did"] = col.decks.id("new col")
     col.models.update_dict(note_type)
     col.addNote(note)
@@ -46,11 +47,15 @@ def setup1():
 
 def test_export_anki():
     setup1()
+    assert col is not None
     # create a new col with its own conf to test conf copying
     did = col.decks.id("test")
+    assert did is not None
     dobj = col.decks.get(did)
+    assert dobj is not None
     confId = col.decks.add_config_returning_id("newconf")
     conf = col.decks.get_config(confId)
+    assert conf is not None
     conf["new"]["perDay"] = 5
     col.decks.save(conf)
     col.decks.set_config_id_for_deck_dict(dobj, confId)
@@ -73,6 +78,7 @@ def test_export_anki():
     conf2 = col2.decks.config_dict_for_deck_id(did)
     assert conf2["new"]["perDay"] == 20
     dobj = col2.decks.get(did)
+    assert dobj is not None
     # conf should be 1
     assert dobj["conf"] == 1
     # try again, limited to a deck
@@ -88,6 +94,7 @@ def test_export_anki():
 
 def test_export_ankipkg():
     setup1()
+    assert col is not None
     # add a test file to the media folder
     with open(os.path.join(col.media.dir(), "今日.mp3"), "w") as note:
         note.write("test")
@@ -111,6 +118,7 @@ def test_export_anki_due():
     col.addNote(note)
     col.crt -= 86400 * 10
     c = col.sched.getCard()
+    assert c is not None
     col.sched.answerCard(c, 3)
     col.sched.answerCard(c, 3)
     # should have ivl of 1, due on day 11
@@ -130,7 +138,7 @@ def test_export_anki_due():
     col2 = getEmptyCol()
     imp = Anki2Importer(col2, newname)
     imp.run()
-    c = col2.getCard(c.id)
+    c = col2.get_card(c.id)
     assert c.due - col2.sched.today == 1
 
 
@@ -146,6 +154,7 @@ def test_export_anki_due():
 
 def test_export_textnote():
     setup1()
+    assert col is not None
     e = TextNoteExporter(col)
     fd, note = tempfile.mkstemp(prefix="ankitest")
     note = str(note)

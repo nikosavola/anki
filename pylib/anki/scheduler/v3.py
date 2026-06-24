@@ -177,6 +177,7 @@ class Scheduler(SchedulerBaseWithLegacy):
 
     def _interval_for_state(self, state: scheduler_pb2.SchedulingState) -> int:
         kind = state.WhichOneof("kind")
+        assert kind is not None
         if kind == "normal":
             return self._interval_for_normal_state(state.normal)
         elif kind == "filtered":
@@ -189,6 +190,7 @@ class Scheduler(SchedulerBaseWithLegacy):
         self, normal: scheduler_pb2.SchedulingState.Normal
     ) -> int:
         kind = normal.WhichOneof("kind")
+        assert kind is not None
         if kind == "new":
             return 0
         elif kind == "review":
@@ -205,6 +207,7 @@ class Scheduler(SchedulerBaseWithLegacy):
         self, filtered: scheduler_pb2.SchedulingState.Filtered
     ) -> int:
         kind = filtered.WhichOneof("kind")
+        assert kind is not None
         if kind == "preview":
             return filtered.preview.scheduled_secs
         elif kind == "rescheduling":
@@ -236,6 +239,7 @@ class Scheduler(SchedulerBaseWithLegacy):
     @property
     def active_decks(self) -> list[DeckId]:
         try:
+            assert self.col.db is not None
             return self.col.db.list("select id from active_decks")
         except DBError:
             return []

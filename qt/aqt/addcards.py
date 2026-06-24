@@ -125,6 +125,7 @@ class AddCards(QMainWindow):
         ar = QDialogButtonBox.ButtonRole.ActionRole
         # add
         self.addButton = bb.addButton(tr.actions_add(), ar)
+        assert self.addButton is not None
         qconnect(self.addButton.clicked, self.add_current_note)
         self.addButton.setShortcut(QKeySequence("Ctrl+Return"))
         # qt5.14+ doesn't handle numpad enter on Windows
@@ -143,6 +144,7 @@ class AddCards(QMainWindow):
         bb.addButton(self.helpButton, QDialogButtonBox.ButtonRole.HelpRole)
         # history
         b = bb.addButton(f"{tr.adding_history()} {downArrow()}", ar)
+        assert b is not None
         if is_mac:
             sc = "Ctrl+Shift+H"
         else:
@@ -180,7 +182,9 @@ class AddCards(QMainWindow):
             old_field_names = list(old_note.keys())
             new_field_names = list(new_note.keys())
             copied_field_names = set()
-            for f in new_note.note_type()["flds"]:
+            new_notetype = new_note.note_type()
+            assert new_notetype is not None
+            for f in new_notetype["flds"]:
                 field_name = f["name"]
                 # copy identical non-empty fields
                 if field_name in old_field_names and old_note[field_name]:
@@ -211,14 +215,19 @@ class AddCards(QMainWindow):
         self.editor.loadNote(
             focusTo=min(self.editor.last_field_index or 0, len(new_note.fields) - 1)
         )
-        gui_hooks.addcards_did_change_note_type(
-            self, old_note.note_type(), new_note.note_type()
-        )
+        assert old_note is not None
+        old_notetype = old_note.note_type()
+        new_notetype = new_note.note_type()
+        assert old_notetype is not None
+        assert new_notetype is not None
+        gui_hooks.addcards_did_change_note_type(self, old_notetype, new_notetype)
 
     def _load_new_note(self, sticky_fields_from: Note | None = None) -> None:
         note = self._new_note()
         if old_note := sticky_fields_from:
-            flds = note.note_type()["flds"]
+            notetype = note.note_type()
+            assert notetype is not None
+            flds = notetype["flds"]
             # copy fields from old note
             if old_note:
                 for n in range(min(len(note.fields), len(old_note.fields))):
@@ -242,9 +251,9 @@ class AddCards(QMainWindow):
             )
 
     def _new_note(self) -> Note:
-        return self.col.new_note(
-            self.col.models.get(self.notetype_chooser.selected_notetype_id)
-        )
+        notetype = self.col.models.get(self.notetype_chooser.selected_notetype_id)
+        assert notetype is not None
+        return self.col.new_note(notetype)
 
     def addHistory(self, note: Note) -> None:
         self.history.insert(0, note.id)
@@ -266,9 +275,11 @@ class AddCards(QMainWindow):
                 # In qt action "&i" means "underline i, trigger this line when i is pressed".
                 # except for "&&" which is replaced by a single "&"
                 a = m.addAction(line)
+                assert a is not None
                 qconnect(a.triggered, lambda b, nid=nid: self.editHistory(nid))
             else:
                 a = m.addAction(tr.adding_note_deleted())
+                assert a is not None
                 a.setEnabled(False)
         gui_hooks.add_cards_will_show_history_menu(self, m)
         m.exec(self.historyButton.mapToGlobal(QPoint(0, 0)))
@@ -286,6 +297,7 @@ class AddCards(QMainWindow):
 
     def _add_current_note(self) -> None:
         note = self.editor.note
+        assert note is not None
 
         # Prevent adding a note that has already been added (e.g., from double-clicking)
         if note.id != 0:
@@ -341,13 +353,14 @@ class AddCards(QMainWindow):
 
         return True
 
-    def keyPressEvent(self, evt: QKeyEvent) -> None:
-        if evt.key() == Qt.Key.Key_Escape:
+    def keyPressEvent(self, evt: QKeyEvent | None) -> None:
+        if evt is not None and evt.key() == Qt.Key.Key_Escape:
             self.close()
         else:
             super().keyPressEvent(evt)
 
-    def closeEvent(self, evt: QCloseEvent) -> None:
+    def closeEvent(self, evt: QCloseEvent | None) -> None:
+        assert evt is not None
         if self._close_event_has_cleaned_up:
             evt.accept()
             return

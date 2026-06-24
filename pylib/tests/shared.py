@@ -7,15 +7,18 @@ import os
 import shutil
 import tempfile
 import time
+from collections.abc import Callable
 
 from anki.collection import Collection as aopen
 
 # Between 2-4AM, shift the time back so test assumptions hold.
 lt = time.localtime()
+orig_time: Callable[[], float] | None
 if lt.tm_hour >= 2 and lt.tm_hour < 4:
     orig_time = time.time
 
     def adjusted_time():
+        assert orig_time is not None
         return orig_time() - 60 * 60 * 2
 
     time.time = adjusted_time

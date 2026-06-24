@@ -43,6 +43,8 @@ class Importer:
     # need to make sure our starting point is safe.
 
     def _prepareTS(self) -> None:
+        assert self.dst is not None
+        assert self.dst.db is not None
         self._ts = max_id(self.dst.db)
 
     def ts(self) -> Any:

@@ -134,12 +134,15 @@ class ModelManager(DeprecatedNamesMixin):
 
     def current(self, for_deck: bool = True) -> NotetypeDict:
         "Get current model. In new code, prefer col.defaults_for_adding()"
-        notetype = self.get(self.col.decks.current().get("mid"))
+        mid = self.col.decks.current().get("mid")
+        notetype = self.get(mid) if mid is not None else None
         if not for_deck or not notetype:
             notetype = self.get(self.col.conf["curModel"])
         if notetype:
             return notetype
-        return self.get(NotetypeId(self.all_names_and_ids()[0].id))
+        notetype = self.get(NotetypeId(self.all_names_and_ids()[0].id))
+        assert notetype is not None
+        return notetype
 
     # Retrieving and creating models
     #############################################################
@@ -172,7 +175,8 @@ class ModelManager(DeprecatedNamesMixin):
 
     def all(self) -> list[NotetypeDict]:
         "Get all models."
-        return [self.get(NotetypeId(nt.id)) for nt in self.all_names_and_ids()]
+        notetypes = [self.get(NotetypeId(nt.id)) for nt in self.all_names_and_ids()]
+        return [nt for nt in notetypes if nt is not None]
 
     def by_name(self, name: str) -> NotetypeDict | None:
         "Get model with NAME."
@@ -235,6 +239,7 @@ class ModelManager(DeprecatedNamesMixin):
         # existing code expects the note type to be mutated to reflect
         # the changes made when adding, such as ordinal assignment :-(
         updated = self.get(notetype["id"])
+        assert updated is not None
         notetype.update(updated)
 
     # Tools
@@ -245,10 +250,12 @@ class ModelManager(DeprecatedNamesMixin):
         if isinstance(ntid, dict):
             # legacy callers passed in note type
             ntid = ntid["id"]
+        assert self.col.db is not None
         return self.col.db.list("select id from notes where mid = ?", ntid)
 
     def use_count(self, notetype: NotetypeDict) -> int:
         "Number of note using M."
+        assert self.col.db is not None
         return self.col.db.scalar(
             "select count() from notes where mid = ?", notetype["id"]
         )
@@ -366,6 +373,7 @@ class ModelManager(DeprecatedNamesMixin):
         notetype["tmpls"].insert(idx, template)
 
     def template_use_count(self, ntid: NotetypeId, ord: int) -> int:
+        assert self.col.db is not None
         return self.col.db.scalar(
             """
 select count() from cards, notes where cards.nid = notes.id
@@ -430,6 +438,7 @@ and notes.mid = ? and cards.ord = ?""",
         # - maps are ord->ord, and there should not be duplicate targets
         self.col.mod_schema(check=True)
         assert fmap
+        assert self.col.db is not None
         field_map = self._convert_legacy_map(fmap, len(newModel["flds"]))
         is_cloze = newModel["type"] == MODEL_CLOZE or notetype["type"] == MODEL_CLOZE
         if not cmap or is_cloze:

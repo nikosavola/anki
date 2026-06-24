@@ -134,8 +134,12 @@ class ProfileManager:
         ## Settings which should be forgotten each Anki restart
         self.session: dict[str, Any] = {}
         self.name: str | None = None
-        self.db: DB | None = None
-        self.profile: dict | None = None
+        # db/profile/meta are only None before a profile/metadata has been
+        # loaded; they are non-None during normal operation, so we annotate
+        # them as non-optional to avoid narrowing at every use site.
+        self.db: DB = None  # type: ignore[assignment]
+        self.profile: dict[str, Any] = None  # type: ignore[assignment]
+        self.meta: dict[str, Any] = None  # type: ignore[assignment]
         self.invalid_profile_provided_on_commandline = False
         self.base = str(base)
 
@@ -306,6 +310,7 @@ class ProfileManager:
     ######################################################################
 
     def profileFolder(self, create: bool = True) -> str:
+        assert self.name is not None
         path = os.path.join(self.base, self.name)
         if create:
             self._ensureExists(path)

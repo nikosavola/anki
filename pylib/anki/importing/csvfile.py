@@ -33,9 +33,11 @@ class TextImporter(NoteImporter):
         notes = []
         lineNum = 0
         ignored = 0
+        assert self.data is not None
         if self.delimiter:
             reader = csv.reader(self.data, delimiter=self.delimiter, doublequote=True)
         else:
+            assert self.dialect is not None
             reader = csv.reader(self.data, self.dialect, doublequote=True)
         try:
             for row in reader:
@@ -74,7 +76,7 @@ class TextImporter(NoteImporter):
         self.fileobj = open(self.file, encoding="utf-8-sig")
         self.data = self.fileobj.read()
 
-        def sub(s):
+        def sub(s: str) -> str:
             return re.sub(r"^\#.*$", "__comment", s)
 
         self.data = [
@@ -90,9 +92,10 @@ class TextImporter(NoteImporter):
             raise Exception("unknownFormat")
 
     def updateDelimiter(self) -> None:
-        def err():
+        def err() -> None:
             raise Exception("unknownFormat")
 
+        assert self.data is not None
         self.dialect = None
         sniffer = csv.Sniffer()
         if not self.delimiter:
@@ -134,12 +137,12 @@ class TextImporter(NoteImporter):
         self.open()
         return self.numFields
 
-    def close(self):
+    def close(self) -> None:
         if self.fileobj:
             self.fileobj.close()
             self.fileobj = None
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
         zuper = super()
         if hasattr(zuper, "__del__"):

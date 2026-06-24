@@ -365,7 +365,7 @@ def test_modelChange():
     note["Back"] = "b123"
     col.addNote(note)
     # switch fields
-    map = {0: 1, 1: 0}
+    map: dict[int, int | None] = {0: 1, 1: 0}
     noop = {0: 0, 1: 1}
     col.models.change(basic, [note.id], basic, map, None)
     note.load()

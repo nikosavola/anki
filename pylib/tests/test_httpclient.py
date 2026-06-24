@@ -14,6 +14,7 @@ from anki.httpclient import HttpClient, _SystemStoreHTTPAdapter
 def test_http_client_mounts_system_store_adapter() -> None:
     client = HttpClient()
     try:
+        assert client.session is not None
         adapter = client.session.get_adapter("https://sync.ankiweb.net/")
         assert isinstance(adapter, _SystemStoreHTTPAdapter)
     finally:

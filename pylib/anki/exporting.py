@@ -45,7 +45,7 @@ class Exporter:
     def key(col: Collection) -> str:
         return ""
 
-    def doExport(self, path) -> None:
+    def doExport(self, path: Any) -> None:
         raise Exception("not implemented")
 
     def exportInto(self, path: str) -> None:
@@ -89,6 +89,7 @@ class Exporter:
         if self.cids is not None:
             cids = self.cids
         elif not self.did:
+            assert self.col.db is not None
             cids = self.col.db.list("select id from cards")
         else:
             cids = self.col.decks.cids(self.did, children=True)
@@ -104,18 +105,18 @@ class TextCardExporter(Exporter):
     ext = ".txt"
     includeHTML = True
 
-    def __init__(self, col) -> None:
+    def __init__(self, col: Collection) -> None:
         Exporter.__init__(self, col)
 
     @staticmethod
     def key(col: Collection) -> str:
         return col.tr.exporting_cards_in_plain_text()
 
-    def doExport(self, file) -> None:
+    def doExport(self, file: BufferedWriter) -> None:
         ids = sorted(self.cardIds())
         strids = ids2str(ids)
 
-        def esc(s):
+        def esc(s: str) -> str:
             # strip off the repeated question in answer if exists
             s = re.sub("(?si)^.*<hr id=answer>\n*", "", s)
             return self.processText(s)
@@ -148,6 +149,7 @@ class TextNoteExporter(Exporter):
     def doExport(self, file: BufferedWriter) -> None:
         cardIds = self.cardIds()
         data = []
+        assert self.col.db is not None
         for id, flds, tags in self.col.db.execute(
             """
 select guid, flds, tags from notes
@@ -204,6 +206,8 @@ class AnkiExporter(Exporter):
             pass
         self.dst = Collection(path)
         self.src = self.col
+        assert self.src.db is not None
+        assert self.dst.db is not None
         # find cards
         cids = self.cardIds()
         # copy cards, noting used nids
@@ -310,7 +314,7 @@ class AnkiExporter(Exporter):
     def removeSystemTags(self, tags: str) -> str:
         return self.src.tags.rem_from_str("marked leech", tags)
 
-    def _modelHasMedia(self, model, fname) -> bool:
+    def _modelHasMedia(self, model: dict[str, Any], fname: str) -> bool:
         # First check the styling
         if fname in model["css"]:
             return True
@@ -390,7 +394,7 @@ class AnkiPackageExporter(AnkiExporter):
 
     # create a dummy collection to ensure older clients don't try to read
     # data they don't understand
-    def _addDummyCollection(self, zip) -> None:
+    def _addDummyCollection(self, zip: ZipFile) -> None:
         path = namedtmp("dummy.anki2")
         c = Collection(path)
         n = c.newNote()
@@ -412,7 +416,7 @@ class AnkiCollectionPackageExporter(AnkiPackageExporter):
     includeSched = None
     LEGACY = True
 
-    def __init__(self, col):
+    def __init__(self, col: Collection) -> None:
         AnkiPackageExporter.__init__(self, col)
 
     @staticmethod
@@ -452,7 +456,7 @@ class AnkiCollectionPackage21bExporter(AnkiCollectionPackageExporter):
 
 
 def exporters(col: Collection) -> list[tuple[str, Any]]:
-    def id(obj) -> tuple[str, Exporter]:
+    def id(obj: Any) -> tuple[str, Exporter]:
         if callable(obj.key):
             key_str = obj.key(col)
         else:

@@ -18,4 +18,4 @@ AnkiRequestsClient = HttpClient
 
 class Syncer:
     def sync(self) -> str:
-        pass
+        return ""

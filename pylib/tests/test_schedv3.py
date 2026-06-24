@@ -440,6 +440,7 @@ def test_review_limits():
 
     # answering a card in the child should decrement parent count
     c = col.sched.getCard()
+    assert c is not None
     col.sched.answerCard(c, 3)
     assert col.sched.counts() == (0, 0, 9)
 

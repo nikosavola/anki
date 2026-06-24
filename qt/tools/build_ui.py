@@ -31,11 +31,27 @@ def with_fixes_for_qt6(code: str) -> str:
     qt_bad_types = [
         ".connect(",
     ]
+    # uic emits chained calls on Qt accessors that are typed as Optional under
+    # strict_optional (e.g. QHeaderView | None from horizontalHeader()), as well
+    # as method calls on temporary `item` variables returned by QListWidget.item()
+    # / QTreeWidget.headerItem() which are also Optional. These are always present
+    # at generation time, so silence the union-attr errors in the generated code.
+    nullable_substrings = [
+        ".horizontalHeader().",
+        ".verticalHeader().",
+        ".headerItem().",
+    ]
+    nullable_item_re = re.compile(r"^\s*item\d*\.")
     for line in code.splitlines():
         for substr in qt_bad_types:
             if substr in line:
                 line = line + "  # type: ignore"
                 break
+        else:
+            if any(s in line for s in nullable_substrings) or nullable_item_re.match(
+                line
+            ):
+                line = line + "  # type: ignore"
         if line == "from . import icons_rc":
             continue
         line = line.replace(":/icons/", "icons:")

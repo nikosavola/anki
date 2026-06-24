@@ -73,7 +73,9 @@ class ExportDialog(QDialog):
         self.frm.buttonBox.addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
         # set default option if accessed through deck button
         if did:
-            name = self.mw.col.decks.get(did)["name"]
+            deck = self.mw.col.decks.get(did)
+            assert deck is not None
+            name = deck["name"]
             index = self.frm.deck.findText(name)
             self.frm.deck.setCurrentIndex(index)
 
@@ -105,6 +107,7 @@ class ExportDialog(QDialog):
         self.frm.includeGuid.setVisible(False)
 
     def accept(self) -> None:
+        assert self.exporter is not None
         self.exporter.includeSched = self.frm.includeSched.isChecked()
         self.exporter.includeMedia = self.frm.includeMedia.isChecked()
         self.exporter.includeTags = self.frm.includeTags.isChecked()
@@ -131,6 +134,7 @@ class ExportDialog(QDialog):
             deck_name = self.decks[self.frm.deck.currentIndex()]
             deck_name = re.sub('[\\\\/?<>:*|"^]', "_", deck_name)
 
+        assert self.exporter.ext is not None
         filename = f"{deck_name}{self.exporter.ext}"
         if callable(self.exporter.key):
             key_str = self.exporter.key(self.col)
@@ -182,6 +186,7 @@ class ExportDialog(QDialog):
                 )
 
             def do_export() -> None:
+                assert self.exporter is not None
                 self.exporter.exportInto(file)
 
             def on_done(future: Future) -> None:
@@ -207,6 +212,7 @@ class ExportDialog(QDialog):
             self.mw.taskman.run_in_background(do_export, on_done)
 
     def on_export_finished(self) -> None:
+        assert self.exporter is not None
         if self.isVerbatim:
             msg = tr.exporting_collection_exported()
             self.mw.reopen()

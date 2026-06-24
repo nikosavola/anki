@@ -12,6 +12,7 @@ from typing import Any
 
 import anki.cards
 import anki.collection
+import anki.dbproxy
 from anki.consts import *
 from anki.lang import FormatTimeSpan
 from anki.utils import base62, ids2str
@@ -102,6 +103,16 @@ class CollectionStats:
         self.height = 200
         self.wholeCollection = False
 
+    @property
+    def db(self) -> anki.dbproxy.DBProxy:
+        assert self.col.db is not None
+        return self.col.db
+
+    def _db_first(self, *args: Any, **kwargs: Any) -> anki.dbproxy.Row:
+        row = self.db.first(*args, **kwargs)
+        assert row is not None
+        return row
+
     # assumes jquery & plot are available in document
     def report(self, type: int = PERIOD_MONTH) -> str:
         # 0=month, 1=year, 2=deck life
@@ -144,7 +155,7 @@ body { direction: ltr !important; }
         lim = self._revlogLimit()
         if lim:
             lim = " and " + lim
-        cards, thetime, failed, lrn, rev, relrn, filt = self.col.db.first(
+        cards, thetime, failed, lrn, rev, relrn, filt = self._db_first(
             f"""
 select count(), sum(time)/1000,
 sum(case when ease = 1 then 1 else 0 end), /* failed */
@@ -187,7 +198,7 @@ from revlog where type != {REVLOG_RESCHED} and id > ? """
                 d=bold(str(filt)),
             )
             # mature today
-            mcnt, msum = self.col.db.first(
+            mcnt, msum = self._db_first(
                 """
     select count(), sum(case when ease = 1 then 0 else 1 end) from revlog
     where lastIvl >= 21 and id > ?"""
@@ -277,7 +288,7 @@ from revlog where type != {REVLOG_RESCHED} and id > ? """
             self.col.tr.statistics_reviews(reviews=tot),
         )
         self._line(i, "Average", self._avgDay(tot, num, "reviews"))
-        tomorrow = self.col.db.scalar(
+        tomorrow = self.db.scalar(
             f"""
 select count() from cards where did in %s and queue in ({QUEUE_TYPE_REV},{QUEUE_TYPE_DAY_LEARN_RELEARN})
 and due = ?"""
@@ -296,7 +307,7 @@ and due = ?"""
             lim += " and due-%d >= %d" % (self.col.sched.today, start)
         if end is not None:
             lim += " and day < %d" % end
-        return self.col.db.all(
+        return self.db.all(
             f"""
 select (due-?)/? as day,
 sum(case when ivl < 21 then 1 else 0 end), -- yng
@@ -509,7 +520,7 @@ group by day order by day"""
             tf = 60.0  # minutes
         else:
             tf = 3600.0  # hours
-        return self.col.db.all(
+        return self.db.all(
             """
 select
 (cast((id/1000.0 - ?) / 86400.0 as int))/? as day,
@@ -538,7 +549,7 @@ group by day order by day"""
             tf = 60.0  # minutes
         else:
             tf = 3600.0  # hours
-        return self.col.db.all(
+        return self.db.all(
             f"""
 select
 (cast((id/1000.0 - ?) / 86400.0 as int))/? as day,
@@ -579,7 +590,7 @@ group by day order by day"""
             lim = "where " + " and ".join(lims)
         else:
             lim = ""
-        ret = self.col.db.first(
+        ret = self.db.first(
             """
 select count(), abs(min(day)) from (select
 (cast((id/1000 - ?) / 86400.0 as int)+1) as day
@@ -639,7 +650,7 @@ group by day order by day)"""
         start, end, chunk = self.get_start_end_chunk()
         lim = "and grp <= %d" % end if end else ""
         data = [
-            self.col.db.all(
+            self.db.all(
                 f"""
 select ivl / ? as grp, count() from cards
 where did in %s and queue = {QUEUE_TYPE_REV} %s
@@ -652,7 +663,7 @@ order by grp"""
         return (
             data
             + list(
-                self.col.db.first(
+                self._db_first(
                     f"""
 select count(), avg(ivl), max(ivl) from cards where did in %s and queue = {QUEUE_TYPE_REV}"""
                     % self._limit()
@@ -751,7 +762,7 @@ select count(), avg(ivl), max(ivl) from cards where did in %s and queue = {QUEUE
         else:
             lim = ""
         ease4repl = "ease"
-        return self.col.db.all(
+        return self.db.all(
             f"""
 select (case
 when type in ({REVLOG_LRN},{REVLOG_RELRN}) then 0
@@ -841,7 +852,7 @@ order by thetype, ease"""
         pd = self._periodDays()
         if pd:
             lim += " and id > %d" % ((self.col.sched.day_cutoff - (86400 * pd)) * 1000)
-        return self.col.db.all(
+        return self.db.all(
             f"""
 select
 23 - ((cast((? - id/1000) / 3600.0 as int)) %% 24) as hour,
@@ -872,7 +883,7 @@ group by hour having count() > 30 order by hour"""
             d.append(dict(data=div[c], label=f"{t}: {div[c]}", color=col))
         # text data
         i: list[str] = []
-        (c, f) = self.col.db.first(
+        (c, f) = self._db_first(
             """
 select count(id), count(distinct nid) from cards
 where did in %s """
@@ -915,7 +926,7 @@ when you answer "good" on a review."""
         return "<table width=400>" + "".join(i) + "</table>"
 
     def _factors(self) -> Any:
-        return self.col.db.first(
+        return self.db.first(
             f"""
 select
 min(factor) / 10.0,
@@ -926,7 +937,7 @@ from cards where did in %s and queue = {QUEUE_TYPE_REV}"""
         )
 
     def _cards(self) -> Any:
-        return self.col.db.first(
+        return self.db.first(
             f"""
 select
 sum(case when queue={QUEUE_TYPE_REV} and ivl >= 21 then 1 else 0 end), -- mtr
@@ -1092,13 +1103,13 @@ $(function () {
             lim = " where " + lim
         t = 0
         if by == "review":
-            t = self.col.db.scalar("select id from revlog %s order by id limit 1" % lim)
+            t = self.db.scalar("select id from revlog %s order by id limit 1" % lim)
         elif by == "add":
             if self.wholeCollection:
                 lim = ""
             else:
                 lim = "where did in %s" % ids2str(self.col.decks.active())
-            t = self.col.db.scalar("select id from cards %s order by id limit 1" % lim)
+            t = self.db.scalar("select id from cards %s order by id limit 1" % lim)
         if not t:
             period = 1
         else:

@@ -160,8 +160,11 @@ class TemplateRenderContext:
         self._fields: dict | None = None
         self._latex_svg = False
         self._question_side: bool = True
+        self._note_type: NotetypeDict
         if not notetype:
-            self._note_type = note.note_type()
+            note_type = note.note_type()
+            assert note_type is not None
+            self._note_type = note_type
         else:
             self._note_type = notetype
 

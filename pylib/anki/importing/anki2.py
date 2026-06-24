@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import re
 import unicodedata
 from typing import Any
 
@@ -61,6 +62,7 @@ class Anki2Importer(Importer):
         self.dst = self.col
         self.src = Collection(self.file)
 
+        assert self.src.db is not None
         if not self._importing_v2:
             # any scheduling included?
             if self.src.db.scalar("select 1 from cards where queue != 0 limit 1"):
@@ -72,6 +74,7 @@ class Anki2Importer(Importer):
         self._decks = {}
         if self.deckPrefix:
             id = self.dst.decks.id(self.deckPrefix)
+            assert id is not None
             self.dst.decks.select(id)
         self._prepareTS()
         self._prepareModels()
@@ -92,6 +95,8 @@ class Anki2Importer(Importer):
     def _importNotes(self) -> None:
         # build guid -> (id,mod,mid) hash & map of existing note ids
         self._notes: dict[str, tuple[NoteId, int, NotetypeId]] = {}
+        assert self.dst.db is not None
+        assert self.src.db is not None
         existing = {}
         for id, guid, mod, mid in self.dst.db.execute(
             "select id, guid, mod, mid from notes"
@@ -231,6 +236,7 @@ class Anki2Importer(Importer):
             return self._modelMap[srcMid]
         mid = srcMid
         srcModel = self.src.models.get(srcMid)
+        assert srcModel is not None
         srcScm = self.src.models.scmhash(srcModel)
         while True:
             # missing from target col?
@@ -243,6 +249,7 @@ class Anki2Importer(Importer):
                 break
             # there's an existing model; do the schemas match?
             dstModel = self.dst.models.get(mid)
+            assert dstModel is not None
             dstScm = self.dst.models.scmhash(dstModel)
             if srcScm == dstScm:
                 # copy styling changes over if newer
@@ -268,6 +275,7 @@ class Anki2Importer(Importer):
             return self._decks[did]
         # get the name in src
         g = self.src.decks.get(did)
+        assert g is not None
         name = g["name"]
         # if there's a prefix, replace the top level deck
         if self.deckPrefix:
@@ -282,6 +290,7 @@ class Anki2Importer(Importer):
                 head += "::"
             head += parent
             idInSrc = self.src.decks.id(head)
+            assert idInSrc is not None
             self._did(idInSrc)
         # if target is a filtered deck, we'll need a new deck name
         deck = self.dst.decks.by_name(name)
@@ -289,16 +298,20 @@ class Anki2Importer(Importer):
             name = "%s %d" % (name, int_time())
         # create in local
         newid = self.dst.decks.id(name)
+        assert newid is not None
         # pull conf over
         if "conf" in g and g["conf"] != 1:
             conf = self.src.decks.get_config(g["conf"])
+            assert conf is not None
             self.dst.decks.save(conf)
             self.dst.decks.update_config(conf)
             g2 = self.dst.decks.get(newid)
+            assert g2 is not None
             g2["conf"] = g["conf"]
             self.dst.decks.save(g2)
         # save desc
         deck = self.dst.decks.get(newid)
+        assert deck is not None
         deck["desc"] = g["desc"]
         self.dst.decks.save(deck)
         # add to deck map and return
@@ -313,6 +326,8 @@ class Anki2Importer(Importer):
             self.src.upgrade_to_v2_scheduler()
         # build map of (guid, ord) -> cid and used id cache
         self._cards: dict[tuple[str, int], CardId] = {}
+        assert self.dst.db is not None
+        assert self.src.db is not None
         existing = {}
         for guid, ord, cid in self.dst.db.execute(
             "select f.guid, c.ord, c.id from cards c, notes f where c.nid = f.id"
@@ -440,7 +455,7 @@ insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""",
     def _mungeMedia(self, mid: NotetypeId, fieldsStr: str) -> str:
         fields = split_fields(fieldsStr)
 
-        def repl(match):
+        def repl(match: re.Match[str]) -> str:
             fname = match.group("fname")
             srcData = self._srcMediaData(fname)
             dstData = self._dstMediaData(fname)
@@ -473,6 +488,7 @@ insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""",
         for did in list(self._decks.values()):
             self.col.sched.maybe_randomize_deck(did)
         # make sure new position is correct
+        assert self.dst.db is not None
         self.dst.conf["nextPos"] = (
             self.dst.db.scalar("select max(due)+1 from cards where type = 0") or 0
         )

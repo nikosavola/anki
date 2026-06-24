@@ -188,14 +188,20 @@ class Translations(GeneratedTranslations):
             )
 
         (module, message) = key
-        return self.backend().translate(
+        assert self.backend is not None
+        backend = self.backend()
+        assert backend is not None
+        return backend.translate(
             module_index=module, message_index=message, **kwargs
         )
 
     def _translate(
         self, module: int, message: int, args: dict[str, str | int | float]
     ) -> str:
-        return self.backend().translate(
+        assert self.backend is not None
+        backend = self.backend()
+        assert backend is not None
+        return backend.translate(
             module_index=module, message_index=message, **args
         )
 

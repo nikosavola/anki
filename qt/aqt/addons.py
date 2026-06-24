@@ -266,11 +266,13 @@ class AddonManager:
             txt = f"# {tr.addons_startup_failed()}\n{error}"
             html2 = markdown.markdown(txt)
             box: QDialogButtonBox
-            (diag, box) = showText(
+            shown = showText(
                 html2,
                 type="html",
                 run=False,
             )
+            assert shown is not None
+            (diag, box) = shown
 
             def on_check() -> None:
                 tooltip(tr.addons_checking())
@@ -283,17 +285,21 @@ class AddonManager:
 
             def on_copy() -> None:
                 txt = supportText() + "\n" + error_text
-                QApplication.clipboard().setText(txt)
+                clipboard = QApplication.clipboard()
+                assert clipboard is not None
+                clipboard.setText(txt)
                 tooltip(tr.about_copied_to_clipboard(), parent=diag)
 
             check = box.addButton(
                 tr.addons_check_for_updates(), QDialogButtonBox.ButtonRole.ActionRole
             )
+            assert check is not None
             check.clicked.connect(on_check)
 
             copy = box.addButton(
                 tr.about_copy_debug_info(), QDialogButtonBox.ButtonRole.ActionRole
             )
+            assert copy is not None
             copy.clicked.connect(on_copy)
 
             # calling show immediately appears to crash
@@ -371,8 +377,9 @@ class AddonManager:
     def ankiweb_addons(self) -> list[int]:
         ids = []
         for meta in self.all_addon_meta():
-            if meta.ankiweb_id() is not None:
-                ids.append(meta.ankiweb_id())
+            ankiweb_id = meta.ankiweb_id()
+            if ankiweb_id is not None:
+                ids.append(ankiweb_id)
         return ids
 
     # Legacy helpers
@@ -680,10 +687,10 @@ class AddonManager:
     def addon_from_module(module: str) -> str:
         return module.split(".")[0]
 
-    def configAction(self, module: str) -> Callable[[], bool | None]:
+    def configAction(self, module: str) -> Callable[[], bool | None] | None:
         return self._configButtonActions.get(module)
 
-    def configUpdatedAction(self, module: str) -> Callable[[Any], None]:
+    def configUpdatedAction(self, module: str) -> Callable[[Any], None] | None:
         return self._configUpdatedActions.get(module)
 
     # Schema
@@ -765,7 +772,7 @@ class AddonManager:
         addon = self.addonFromModule(module)
         self._webExports[addon] = pattern
 
-    def getWebExports(self, module: str) -> str:
+    def getWebExports(self, module: str) -> str | None:
         return self._webExports.get(module)
 
     # Logging
@@ -837,8 +844,10 @@ class AddonsDialog(QDialog):
         self._onAddonSelectionChanged()
         self.show()
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+    def dragEnterEvent(self, event: QDragEnterEvent | None) -> None:
+        assert event is not None
         mime = event.mimeData()
+        assert mime is not None
         if not mime.hasUrls():
             return None
         urls = mime.urls()
@@ -846,8 +855,10 @@ class AddonsDialog(QDialog):
         if all(any(url.toLocalFile().endswith(ext) for ext in exts) for url in urls):
             event.acceptProposedAction()
 
-    def dropEvent(self, event: QDropEvent) -> None:
+    def dropEvent(self, event: QDropEvent | None) -> None:
+        assert event is not None
         mime = event.mimeData()
+        assert mime is not None
         paths = []
         for url in mime.urls():
             path = url.toLocalFile()
@@ -1076,6 +1087,7 @@ class GetAddons(QDialog):
         b = self.form.buttonBox.addButton(
             tr.addons_browse_addons(), QDialogButtonBox.ButtonRole.ActionRole
         )
+        assert b is not None
         qconnect(b.clicked, self.onBrowse)
         disable_help_button(self)
         restoreGeom(self, "getaddons", adjustSize=True)
@@ -1396,6 +1408,7 @@ class ChooseAddonsToUpdateList(QListWidget):
         addon_id = item.data(self.ADDON_ID_ROLE)
         m = QMenu()
         a = m.addAction(tr.addons_view_addon_page())
+        assert a is not None
         qconnect(a.triggered, lambda _: openLink(f"{aqt.appShared}info/{addon_id}"))
         m.exec(QCursor.pos())
 
@@ -1407,11 +1420,14 @@ class ChooseAddonsToUpdateList(QListWidget):
 
     def header_checked(self, check: Qt.CheckState) -> None:
         for i in range(1, self.count()):
-            self.check_item(self.item(i), check)
+            item = self.item(i)
+            assert item is not None
+            self.check_item(item, check)
 
     def refresh_header_check_state(self) -> None:
         for i in range(1, self.count()):
             item = self.item(i)
+            assert item is not None
             if not self.checked(item):
                 self.check_item(self.header_item, Qt.CheckState.Unchecked)
                 return
@@ -1421,6 +1437,7 @@ class ChooseAddonsToUpdateList(QListWidget):
         addon_ids = []
         for i in range(1, self.count()):
             item = self.item(i)
+            assert item is not None
             if self.checked(item):
                 addon_id = item.data(self.ADDON_ID_ROLE)
                 addon_ids.append(addon_id)
@@ -1429,6 +1446,7 @@ class ChooseAddonsToUpdateList(QListWidget):
     def save_check_state(self) -> None:
         for i in range(1, self.count()):
             item = self.item(i)
+            assert item is not None
             addon_id = item.data(self.ADDON_ID_ROLE)
             addon_meta = self.mgr.addon_meta(str(addon_id))
             addon_meta.update_enabled = self.checked(item)
@@ -1462,13 +1480,12 @@ class ChooseAddonsToUpdateDialog(QDialog):
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )  # type: ignore
-        qconnect(
-            button_box.button(QDialogButtonBox.StandardButton.Ok).clicked, self.accept
-        )
-        qconnect(
-            button_box.button(QDialogButtonBox.StandardButton.Cancel).clicked,
-            self.reject,
-        )
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
+        assert ok_button is not None
+        qconnect(ok_button.clicked, self.accept)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        assert cancel_button is not None
+        qconnect(cancel_button.clicked, self.reject)
         layout.addWidget(button_box)
         self.setLayout(layout)
 
@@ -1625,8 +1642,10 @@ class ConfigEditor(QDialog):
         restore = self.form.buttonBox.button(
             QDialogButtonBox.StandardButton.RestoreDefaults
         )
+        assert restore is not None
         qconnect(restore.clicked, self.onRestoreDefaults)
         ok = self.form.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
+        assert ok is not None
         ok.setShortcut(QKeySequence("Ctrl+Return"))
         self.setupFonts()
         self.updateHelp()
@@ -1646,6 +1665,7 @@ class ConfigEditor(QDialog):
 
     def onRestoreDefaults(self) -> None:
         default_conf = self.mgr.addonConfigDefaults(self.addon)
+        assert default_conf is not None
         self.updateText(default_conf)
         tooltip(tr.addons_restored_defaults(), parent=self)
 

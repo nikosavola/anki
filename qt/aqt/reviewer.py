@@ -210,6 +210,7 @@ class Reviewer:
             self.mw.fade_in_webview()
             self._refresh_needed = None
         elif self._refresh_needed is RefreshNeeded.FLAG:
+            assert self.card is not None
             self.card.load()
             self._update_flag_icon()
             # for when modified in browser
@@ -235,6 +236,7 @@ class Reviewer:
         return bool(self._refresh_needed)
 
     def _redraw_current_card(self) -> None:
+        assert self.card is not None
         self.card.load()
         if self.state == "answer":
             self._showAnswer()
@@ -272,15 +274,18 @@ class Reviewer:
         self.card.start_timer()
 
     def get_scheduling_states(self) -> SchedulingStates:
+        assert self._v3 is not None
         return self._v3.states
 
     def get_scheduling_context(self) -> SchedulingContext:
+        assert self._v3 is not None
         return self._v3.context
 
     def set_scheduling_states(self, request: SetSchedulingStatesRequest) -> None:
         if request.key != self._state_mutation_key:
             return
 
+        assert self._v3 is not None
         self._v3.states = request.states
 
     def _run_state_mutation_hook(self) -> None:
@@ -300,6 +305,7 @@ class Reviewer:
     ##########################################################################
 
     def replayAudio(self) -> None:
+        assert self.card is not None
         if self.state == "question":
             replay_audio(self.card, True)
         elif self.state == "answer":
@@ -370,10 +376,12 @@ class Reviewer:
         return self.typeAnsFilter(self.mw.prepare_card_text_for_display(buf))
 
     def _showQuestion(self) -> None:
+        assert self._reps is not None
         self._reps += 1
         self.state = "question"
         self.typedAnswer: str | None = None
         c = self.card
+        assert c is not None
         # grab the question and play audio
         q = c.question()
         # play audio?
@@ -409,6 +417,7 @@ class Reviewer:
     def _auto_advance_to_answer_if_enabled(self) -> None:
         self._clear_auto_advance_timers()
         if self.auto_advance_enabled:
+            assert self.card is not None
             conf = self.mw.col.decks.config_dict_for_deck_id(
                 self.card.current_deck_id()
             )
@@ -426,10 +435,11 @@ class Reviewer:
         conf = self.mw.col.decks.config_dict_for_deck_id(self.card.current_deck_id())
         if conf["waitForAudio"] and av_player.current_player:
             return
+        focus_widget = self.mw.app.focusWidget()
         if (
             not self.auto_advance_enabled
-            or not self.mw.app.focusWidget()
-            or self.mw.app.focusWidget().window() != self.mw
+            or not focus_widget
+            or focus_widget.window() != self.mw
         ):
             self.auto_advance_enabled = False
             return
@@ -448,9 +458,11 @@ class Reviewer:
         return card.autoplay()
 
     def _update_flag_icon(self) -> None:
+        assert self.card is not None
         self.web.eval(f"_drawFlag({self.card.user_flag()});")
 
     def _update_mark_icon(self) -> None:
+        assert self.card is not None
         self.web.eval(f"_drawMark({json.dumps(self.card.note().has_tag(MARKED_TAG))});")
 
     _drawMark = _update_mark_icon
@@ -465,6 +477,7 @@ class Reviewer:
             return
         self.state = "answer"
         c = self.card
+        assert c is not None
         a = c.answer()
         # play audio?
         if c.autoplay():
@@ -488,6 +501,7 @@ class Reviewer:
     def _auto_advance_to_question_if_enabled(self) -> None:
         self._clear_auto_advance_timers()
         if self.auto_advance_enabled:
+            assert self.card is not None
             conf = self.mw.col.decks.config_dict_for_deck_id(
                 self.card.current_deck_id()
             )
@@ -505,10 +519,11 @@ class Reviewer:
         conf = self.mw.col.decks.config_dict_for_deck_id(self.card.current_deck_id())
         if conf["waitForAudio"] and av_player.current_player:
             return
+        focus_widget = self.mw.app.focusWidget()
         if (
             not self.auto_advance_enabled
-            or not self.mw.app.focusWidget()
-            or self.mw.app.focusWidget().window() != self.mw
+            or not focus_widget
+            or focus_widget.window() != self.mw
         ):
             self.auto_advance_enabled = False
             return
@@ -537,6 +552,8 @@ class Reviewer:
             return
         if self.state != "answer":
             return
+        assert self.card is not None
+        assert self._v3 is not None
         proceed, ease = gui_hooks.reviewer_will_answer_card(
             (True, ease), self, self.card
         )
@@ -552,6 +569,7 @@ class Reviewer:
 
         def after_answer(changes: OpChanges) -> None:
             if gui_hooks.reviewer_did_answer_card.count() > 0:
+                assert self.card is not None
                 self.card.load()
             # v3 scheduler doesn't report this
             suspended = self.card is not None and self.card.queue < 0
@@ -565,6 +583,7 @@ class Reviewer:
         ).run_in_background(initiator=self)
 
     def _after_answering(self, ease: Literal[1, 2, 3, 4]) -> None:
+        assert self.card is not None
         gui_hooks.reviewer_did_answer_card(self, self.card, ease)
         self._answeredIds.append(self.card.id)
         if not self.check_timebox():
@@ -683,6 +702,7 @@ class Reviewer:
         elif url == "more":
             self.showContextMenu()
         elif url.startswith("play:"):
+            assert self.card is not None
             play_clicked_audio(url, self.card)
         elif url.startswith("updateToolbar"):
             self.mw.toolbarWeb.update_background_image()
@@ -706,6 +726,7 @@ class Reviewer:
             return self.typeAnsAnswerFilter(buf)
 
     def typeAnsQuestionFilter(self, buf: str) -> str:
+        assert self.card is not None
         self._combining = True
         self.typeCorrect = None
         clozeIdx = None
@@ -762,6 +783,7 @@ class Reviewer:
         buf = buf.replace("<hr id=answer>", "")
         hadHR = len(buf) != origSize
         initial_expected = self.typeCorrect
+        assert self.typedAnswer is not None
         initial_provided = self.typedAnswer
         expected, provided = gui_hooks.reviewer_will_compare_answer(
             (initial_expected, initial_provided), type_pattern
@@ -810,6 +832,7 @@ class Reviewer:
     ##########################################################################
 
     def _bottomHTML(self) -> str:
+        assert self.card is not None
         return """
 <center id=outer>
 <table id=innertable width=100%% cellspacing=0 cellpadding=0>
@@ -852,6 +875,7 @@ timerStopped = false;
             "<table cellpadding=0><tr><td class=stat2 align=center>%s</td></tr></table>"
             % middle
         )
+        assert self.card is not None
         if self.card.should_show_timer():
             maxTime = self.card.time_limit() / 1000
         else:
@@ -863,6 +887,7 @@ timerStopped = false;
             self.mw.progress.single_shot(50, self._showEaseButtons)
             return
         middle = self._answerButtons()
+        assert self.card is not None
         conf = self.mw.col.decks.config_dict_for_deck_id(self.card.current_deck_id())
         self.bottom.web.eval(
             f"showAnswer({json.dumps(middle)}, {json.dumps(conf['stopTimerOnAnswer'])});"
@@ -873,6 +898,7 @@ timerStopped = false;
             return ""
 
         counts: list[int | str]
+        assert self._v3 is not None
         idx, counts_ = self._v3.counts()
         counts = cast(list[Union[int, str]], counts_)
         counts[idx] = f"<u>{counts[idx]}</u>"
@@ -887,6 +913,7 @@ timerStopped = false;
         return 3
 
     def _answerButtonList(self) -> tuple[tuple[int, str], ...]:
+        assert self.card is not None
         button_count = self.mw.col.sched.answerButtons(self.card)
         if button_count == 2:
             buttons_tuple: tuple[tuple[int, str], ...] = (
@@ -915,6 +942,7 @@ timerStopped = false;
         default = self._defaultEase()
 
         assert isinstance(self.mw.col.sched, V3Scheduler)
+        assert self._v3 is not None
         labels = self.mw.col.sched.describe_next_states(self._v3.states)
 
         def but(i: int, label: str) -> str:
@@ -923,11 +951,8 @@ timerStopped = false;
             else:
                 extra = ""
             due = self._buttonTime(i, v3_labels=labels)
-            key = (
-                tr.actions_shortcut_key(val=aqt.mw.pm.get_answer_key(i))
-                if aqt.mw.pm.get_answer_key(i)
-                else ""
-            )
+            answer_key = aqt.mw.pm.get_answer_key(i)
+            key = tr.actions_shortcut_key(val=answer_key) if answer_key else ""
             return """
 <td align=center><button %s title="%s" data-ease="%s" onclick='pycmd("ease%d");'>\
 %s%s</button></td>""" % (
@@ -1092,6 +1117,7 @@ timerStopped = false;
         self._card_info.show()
 
     def set_flag_on_current_card(self, desired_flag: int) -> None:
+        assert self.card is not None
         # need to toggle off?
         if self.card.user_flag() == desired_flag:
             flag = 0
@@ -1106,7 +1132,10 @@ timerStopped = false;
         return lambda: self.set_flag_on_current_card(desired_flag)
 
     def toggle_mark_on_current_note(self) -> None:
+        assert self.card is not None
+
         def redraw_mark(out: OpChangesWithCount) -> None:
+            assert self.card is not None
             self.card.load()
             self._update_mark_icon()
 
@@ -1134,6 +1163,7 @@ timerStopped = false;
             op.run_in_background()
 
     def suspend_current_note(self) -> None:
+        assert self.card is not None
         gui_hooks.reviewer_will_suspend_note(self.card.nid)
         suspend_note(
             parent=self.mw,
@@ -1141,6 +1171,7 @@ timerStopped = false;
         ).success(lambda _: tooltip(tr.studying_note_suspended())).run_in_background()
 
     def suspend_current_card(self) -> None:
+        assert self.card is not None
         gui_hooks.reviewer_will_suspend_card(self.card.id)
         suspend_cards(
             parent=self.mw,
@@ -1148,6 +1179,7 @@ timerStopped = false;
         ).success(lambda _: tooltip(tr.studying_card_suspended())).run_in_background()
 
     def bury_current_note(self) -> None:
+        assert self.card is not None
         gui_hooks.reviewer_will_bury_note(self.card.nid)
         bury_notes(
             parent=self.mw,
@@ -1157,6 +1189,7 @@ timerStopped = false;
         ).run_in_background()
 
     def bury_current_card(self) -> None:
+        assert self.card is not None
         gui_hooks.reviewer_will_bury_card(self.card.id)
         bury_cards(
             parent=self.mw,
@@ -1166,6 +1199,7 @@ timerStopped = false;
         ).run_in_background()
 
     def forget_current_card(self) -> None:
+        assert self.card is not None
         if op := forget_cards(
             parent=self.mw,
             card_ids=[self.card.id],
@@ -1196,7 +1230,7 @@ timerStopped = false;
 
     def onReplayRecorded(self) -> None:
         self._recordedAudio = gui_hooks.reviewer_will_replay_recording(
-            self._recordedAudio
+            self._recordedAudio or ""
         )
         if not self._recordedAudio:
             tooltip(tr.studying_you_havent_recorded_your_voice_yet())

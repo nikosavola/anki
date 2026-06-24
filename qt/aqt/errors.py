@@ -199,17 +199,22 @@ def _init_message_box(
         openHelp(help_page)
 
     def copy_debug_info():
-        QApplication.clipboard().setText(debug_text)
+        clipboard = QApplication.clipboard()
+        assert clipboard is not None
+        clipboard.setText(debug_text)
         tooltip(tr.errors_copied_to_clipboard(), parent=_mbox)
 
     help = _mbox.addButton(QMessageBox.StandardButton.Help)
+    assert help is not None
     if debug_text:
         debug_info = _mbox.addButton(
             tr.errors_copy_debug_info_button(), QMessageBox.ButtonRole.ActionRole
         )
+        assert debug_info is not None
         debug_info.clicked.disconnect()
         debug_info.clicked.connect(copy_debug_info)
     cancel = _mbox.addButton(QMessageBox.StandardButton.Cancel)
+    assert cancel is not None
     cancel.setText(tr.actions_close())
 
     help.clicked.disconnect()
@@ -237,7 +242,7 @@ class ErrorHandler(QObject):
 
     def unload(self) -> None:
         sys.stderr = self._oldstderr
-        sys.excepthook = None
+        sys.excepthook = None  # type: ignore[assignment]
 
     def write(self, data: str) -> None:
         # dump to stdout
@@ -299,7 +304,7 @@ class ErrorHandler(QObject):
         if "PanicException" in error:
             self.fatal_error_encountered = True
             # ensure no collection-related timers like backup fire
-            self.mw.col = None
+            self.mw.col = None  # type: ignore[assignment]
             user_text = "A fatal error occurred, and Anki must close. Please report this message on the forums."
         else:
             user_text = tr.errors_standard_popup2()
