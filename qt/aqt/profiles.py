@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import base64
 import errno
 import io
+import json
 import os
 import pickle
 import random
@@ -37,8 +39,35 @@ if TYPE_CHECKING:
 
 # Profile handling
 ##########################################################################
-# - Saves in pickles rather than json to easily store Qt window state.
+# - Saves profile data as JSON. Binary values such as Qt window state
+#   (QByteArray) are stored as base64-encoded strings tagged with
+#   _JSON_BINARY_KEY. Profiles written by older versions used pickle; those
+#   are read once via a hardened, allowlisted unpickler and rewritten as JSON
+#   on load. Pickle deserialization of untrusted data is unsafe, so it is
+#   never used for new writes.
 # - Saves in sqlite rather than a flat file so the config can't be corrupted
+
+
+# JSON cannot represent binary data, so QByteArray/bytes values (e.g. Qt
+# window geometry and state) are wrapped in a single-key object tagged with
+# this sentinel and base64-encoded.
+_JSON_BINARY_KEY = "__anki_binary_b64__"
+
+
+def _encode_json_binary(obj: Any) -> dict[str, str]:
+    """json.dumps `default` hook: serialize binary blobs as tagged base64."""
+    if isinstance(obj, QByteArray):
+        obj = obj.data()
+    if isinstance(obj, (bytes, bytearray)):
+        return {_JSON_BINARY_KEY: base64.b64encode(bytes(obj)).decode("ascii")}
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _decode_json_binary(obj: dict[str, Any]) -> Any:
+    """json.loads `object_hook`: turn tagged base64 back into bytes."""
+    if len(obj) == 1 and isinstance(obj.get(_JSON_BINARY_KEY), str):
+        return base64.b64decode(obj[_JSON_BINARY_KEY])
+    return obj
 
 
 class VideoDriver(Enum):
@@ -126,7 +155,9 @@ class LoadMetaResult:
 
 
 class ProfileManager:
-    default_answer_keys = {ease_num: str(ease_num) for ease_num in range(1, 5)}
+    # Keyed by str(ease) so the mapping round-trips through JSON, which only
+    # supports string object keys.
+    default_answer_keys = {str(ease_num): str(ease_num) for ease_num in range(1, 5)}
     last_run_version: int = 0
 
     def __init__(self, base: Path) -> None:
@@ -171,7 +202,24 @@ class ProfileManager:
 
         return n
 
+    # Allowlist of pickle globals that legacy profiles are known to contain.
+    # Restricting find_class to these prevents a crafted profile from importing
+    # and calling arbitrary callables during the one-time migration read.
+    _LEGACY_PICKLE_GLOBALS = {
+        ("aqt.toolbar", "HideMode"),
+        ("aqt.theme", "WidgetStyle"),
+        ("aqt.theme", "Theme"),
+    }
+
     def _unpickle(self, data: bytes) -> Any:
+        """Read legacy pickle-encoded profile data for migration to JSON.
+
+        Hardened against arbitrary code execution: only the sip QByteArray
+        handling and a small allowlist of known-safe globals are permitted;
+        anything else raises rather than importing an unknown callable.
+        """
+        allowed_globals = self._LEGACY_PICKLE_GLOBALS
+
         class Unpickler(pickle.Unpickler):
             def find_class(self, class_module: str, name: str) -> Any:
                 # handle sip lookup ourselves, mapping to current Qt version
@@ -196,18 +244,31 @@ class ProfileManager:
                             return sip._unpickle_type(module, klass, args)  # type: ignore
 
                     return unpickle_type
-                else:
+                elif (class_module, name) in allowed_globals:
                     return super().find_class(class_module, name)
+                else:
+                    raise pickle.UnpicklingError(
+                        f"refusing to load untrusted pickle global "
+                        f"{class_module}.{name}"
+                    )
 
         up = Unpickler(io.BytesIO(data), errors="ignore")
         return up.load()
 
-    def _pickle(self, obj: Any) -> bytes:
-        for key, val in obj.items():
-            if isinstance(val, QByteArray):
-                obj[key] = bytes(val)  # type: ignore
+    def _serialize(self, obj: dict[str, Any]) -> bytes:
+        return json.dumps(obj, default=_encode_json_binary).encode("utf-8")
 
-        return pickle.dumps(obj, protocol=4)
+    def _deserialize(self, data: bytes) -> tuple[Any, bool]:
+        """Decode stored profile data.
+
+        Returns the decoded object and whether it came from the legacy pickle
+        format, so the caller can rewrite it as JSON.
+        """
+        try:
+            return json.loads(data, object_hook=_decode_json_binary), False
+        except ValueError:
+            # Not valid JSON: fall back to the legacy pickle format.
+            return self._unpickle(data), True
 
     def load(self, name: str) -> bool:
         if name == "_global":
@@ -218,7 +279,7 @@ class ProfileManager:
         )
         self.name = name
         try:
-            self.profile = self._unpickle(data)
+            self.profile, was_legacy = self._deserialize(data)
         except Exception:
             print(traceback.format_exc())
             QMessageBox.warning(
@@ -229,13 +290,17 @@ class ProfileManager:
             print("resetting corrupt profile")
             self.profile = profileConf.copy()
             self.save()
+        else:
+            if was_legacy:
+                # migrate legacy pickle data to JSON on first load
+                self.save()
         self.set_last_loaded_profile_name(name)
         return True
 
     def save(self) -> None:
         sql = "update profiles set data = ? where name = ? collate nocase"
-        self.db.execute(sql, self._pickle(self.profile), self.name)
-        self.db.execute(sql, self._pickle(self.meta), "_global")
+        self.db.execute(sql, self._serialize(self.profile), self.name)
+        self.db.execute(sql, self._serialize(self.meta), "_global")
         self.db.commit()
 
     def create(self, name: str) -> None:
@@ -245,7 +310,7 @@ class ProfileManager:
         self.db.execute(
             "insert or ignore into profiles values (?, ?)",
             name,
-            self._pickle(prof),
+            self._serialize(prof),
         )
         self.db.commit()
 
@@ -429,7 +494,14 @@ create table if not exists profiles
         # try to read data
         if not result.firstTime:
             try:
-                self.meta = self._unpickle(data)
+                self.meta, was_legacy = self._deserialize(data)
+                if was_legacy:
+                    # migrate legacy pickle data to JSON on first load
+                    self.db.execute(
+                        "update profiles set data = ? where name = '_global'",
+                        self._serialize(self.meta),
+                    )
+                    self.db.commit()
                 return result
             except Exception:
                 traceback.print_stack()
@@ -441,7 +513,7 @@ create table if not exists profiles
         self.meta = metaConf.copy()
         self.db.execute(
             "insert or replace into profiles values ('_global', ?)",
-            self._pickle(metaConf),
+            self._serialize(metaConf),
         )
         return result
 
@@ -499,7 +571,7 @@ create table if not exists profiles
     def setLang(self, code: str) -> None:
         self.meta["defaultLang"] = code
         sql = "update profiles set data = ? where name = ? collate nocase"
-        self.db.execute(sql, self._pickle(self.meta), "_global")
+        self.db.execute(sql, self._serialize(self.meta), "_global")
         self.db.commit()
         anki.lang.set_lang(code)
 
@@ -560,10 +632,12 @@ create table if not exists profiles
         self.meta["spacebar_rates_card"] = on
 
     def get_answer_key(self, ease: int) -> str | None:
-        return self.meta.setdefault("answer_keys", self.default_answer_keys).get(ease)
+        return self.meta.setdefault("answer_keys", self.default_answer_keys).get(
+            str(ease)
+        )
 
     def set_answer_key(self, ease: int, key: str):
-        self.meta.setdefault("answer_keys", self.default_answer_keys)[ease] = key
+        self.meta.setdefault("answer_keys", self.default_answer_keys)[str(ease)] = key
 
     def hide_top_bar(self) -> bool:
         return self.meta.get("hide_top_bar", False)
@@ -573,7 +647,7 @@ create table if not exists profiles
         gui_hooks.body_classes_need_update()
 
     def top_bar_hide_mode(self) -> HideMode:
-        return self.meta.get("top_bar_hide_mode", HideMode.FULLSCREEN)
+        return HideMode(self.meta.get("top_bar_hide_mode", HideMode.FULLSCREEN))
 
     def set_top_bar_hide_mode(self, mode: HideMode) -> None:
         self.meta["top_bar_hide_mode"] = mode
@@ -587,7 +661,7 @@ create table if not exists profiles
         gui_hooks.body_classes_need_update()
 
     def bottom_bar_hide_mode(self) -> HideMode:
-        return self.meta.get("bottom_bar_hide_mode", HideMode.FULLSCREEN)
+        return HideMode(self.meta.get("bottom_bar_hide_mode", HideMode.FULLSCREEN))
 
     def set_bottom_bar_hide_mode(self, mode: HideMode) -> None:
         self.meta["bottom_bar_hide_mode"] = mode
@@ -620,8 +694,10 @@ create table if not exists profiles
         theme_manager.apply_style()
 
     def get_widget_style(self) -> WidgetStyle:
-        return self.meta.get(
-            "widget_style", WidgetStyle.NATIVE if is_mac else WidgetStyle.ANKI
+        return WidgetStyle(
+            self.meta.get(
+                "widget_style", WidgetStyle.NATIVE if is_mac else WidgetStyle.ANKI
+            )
         )
 
     def browser_layout(self) -> BrowserLayout:

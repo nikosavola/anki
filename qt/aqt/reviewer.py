@@ -599,7 +599,7 @@ class Reviewer:
         def generate_default_answer_keys() -> Generator[
             tuple[str, partial], None, None
         ]:
-            for ease in aqt.mw.pm.default_answer_keys:
+            for ease in map(int, aqt.mw.pm.default_answer_keys):
                 key = aqt.mw.pm.get_answer_key(ease)
                 if not key:
                     continue
