@@ -63,10 +63,10 @@ impl NativeDeckName {
     /// `target` being unset represents a drop at the top or bottom of the deck
     /// list. The returned name should be used to replace `self`.
     pub(crate) fn reparented_name(&self, target: Option<&NativeDeckName>) -> Option<Self> {
-        let dragged_base = self.0.rsplit('\x1f').next().unwrap();
-        let dragged_root = self.components().next().unwrap();
+        let dragged_base = self.0.rsplit('\x1f').next()?;
+        let dragged_root = self.components().next()?;
         if let Some(target) = target {
-            let target_root = target.components().next().unwrap();
+            let target_root = target.components().next()?;
             if target.0.starts_with(&self.0) && target_root == dragged_root {
                 // foo onto foo::bar, or foo onto itself -> no-op
                 None

@@ -79,7 +79,11 @@ impl TryFrom<anki_proto::search::SearchNode> for Node {
                     match group.nodes.len() {
                         0 => invalid_input!("empty group"),
                         // a group of 1 doesn't need to be a group
-                        1 => group.nodes.pop().unwrap().try_into()?,
+                        1 => group
+                            .nodes
+                            .pop()
+                            .or_invalid("group node missing")?
+                            .try_into()?,
                         // 2+ nodes
                         _ => {
                             let joiner = match group.joiner() {
@@ -100,7 +104,7 @@ impl TryFrom<anki_proto::search::SearchNode> for Node {
                 Filter::ParsableText(text) => {
                     let mut nodes = parse_search(&text)?;
                     if nodes.len() == 1 {
-                        nodes.pop().unwrap()
+                        nodes.pop().or_invalid("parsed search node missing")?
                     } else {
                         Node::Group(nodes)
                     }

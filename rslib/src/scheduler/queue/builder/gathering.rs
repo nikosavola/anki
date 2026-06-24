@@ -33,7 +33,7 @@ impl QueueBuilder {
     }
 
     fn gather_due_cards(&mut self, col: &mut Collection, kind: DueCardKind) -> Result<()> {
-        if self.limits.root_limit_reached(LimitKind::Review) {
+        if self.limits.root_limit_reached(LimitKind::Review)? {
             return Ok(());
         }
         col.storage.for_each_due_card_in_active_decks(
@@ -42,7 +42,7 @@ impl QueueBuilder {
             kind,
             self.context.fsrs,
             |card| {
-                if self.limits.root_limit_reached(LimitKind::Review) {
+                if self.limits.root_limit_reached(LimitKind::Review)? {
                     return Ok(false);
                 }
                 if !self
@@ -90,7 +90,7 @@ impl QueueBuilder {
         sort: NewCardSorting,
     ) -> Result<()> {
         for deck_id in col.storage.get_active_deck_ids_sorted()? {
-            if self.limits.root_limit_reached(LimitKind::New) {
+            if self.limits.root_limit_reached(LimitKind::New)? {
                 break;
             }
             if self.limits.limit_reached(deck_id, LimitKind::New)? {
@@ -117,7 +117,7 @@ impl QueueBuilder {
     ) -> Result<()> {
         col.storage
             .for_each_new_card_in_active_decks(order, |card| {
-                if self.limits.root_limit_reached(LimitKind::New) {
+                if self.limits.root_limit_reached(LimitKind::New)? {
                     return Ok(false);
                 }
                 if !self
