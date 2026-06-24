@@ -2,12 +2,12 @@
 Copyright: Ankitects Pty Ltd and contributors
 License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 -->
-<script>
+<script lang="ts">
     import Col from "$lib/components/Col.svelte";
     import ConfigInput from "$lib/components/ConfigInput.svelte";
     import Row from "$lib/components/Row.svelte";
 
-    export let date;
+    export let date: string;
     $: date = date ? date : "1970-01-01";
 </script>
 

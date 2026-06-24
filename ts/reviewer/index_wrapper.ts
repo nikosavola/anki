@@ -5,5 +5,5 @@
 import * as globals from "./index";
 
 for (const key in globals) {
-    window[key] = globals[key];
+    (window as unknown as Record<string, unknown>)[key] = (globals as Record<string, unknown>)[key];
 }

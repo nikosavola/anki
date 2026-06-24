@@ -95,12 +95,10 @@ export function buildHistogram(
     const desiredBars = Math.min(70, xMax! - xMin!);
 
     const x = scaleLinear().domain([xMin!, xMax!]);
-    const bins = bin()
-        .value((m) => {
-            return m[0];
-        })
-        .domain(x.domain() as any)
-        .thresholds(x.ticks(desiredBars))(data.entries() as any);
+    const bins = bin<[number, number], number>()
+        .value((m) => m[0])
+        .domain(x.domain() as [number, number])
+        .thresholds(x.ticks(desiredBars))([...data.entries()]) as unknown as Bin<number, number>[];
 
     // empty graph?
     if (!sum(bins, (bin) => bin.length)) {

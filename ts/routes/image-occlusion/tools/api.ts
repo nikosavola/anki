@@ -23,15 +23,15 @@ export class MaskEditorAPI {
 
     readonly canvas: fabric.Canvas;
 
-    constructor(canvas) {
+    constructor(canvas: fabric.Canvas) {
         this.canvas = canvas;
     }
 
-    addShape(bounding, shape: Shape): void {
+    addShape(bounding: fabric.Rect, shape: Shape): void {
         addShape(this.canvas, bounding, shape);
     }
 
-    addShapeGroup(bounding, shapes: Shape[]): void {
+    addShapeGroup(bounding: fabric.Rect, shapes: Shape[]): void {
         addShapeGroup(this.canvas, bounding, shapes);
     }
 

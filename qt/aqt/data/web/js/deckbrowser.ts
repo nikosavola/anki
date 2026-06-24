@@ -8,7 +8,7 @@ function init() {
         scroll: false,
 
         // can't use "helper: 'clone'" because of a bug in jQuery 1.5
-        helper: function(_event) {
+        helper: function(_event: Event) {
             return $(this).clone(false);
         },
         delay: 200,
@@ -24,7 +24,7 @@ function init() {
     });
 }
 
-function handleDropEvent(event, ui) {
+function handleDropEvent(event: Event, ui: { draggable: JQuery }) {
     const draggedDeckId = ui.draggable.attr("id");
     const ontoDeckId = $(this).attr("id") || "";
 

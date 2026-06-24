@@ -29,7 +29,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     async function setStyling(property: string, value: unknown): Promise<void> {
         const rule = await userBaseRule;
-        rule.style[property] = value;
+        (rule.style as unknown as Record<string, unknown>)[property] = value;
 
         // if we don't set the textContent of the underlying HTMLStyleElement, addons
         // which extend the custom style and set textContent of their registered tags

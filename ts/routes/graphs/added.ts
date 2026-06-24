@@ -67,12 +67,10 @@ export function buildHistogram(
     const desiredBars = Math.min(70, Math.abs(xMin!));
 
     const scale = scaleLinear().domain([xMin!, xMax]);
-    const bins = bin()
-        .value((m) => {
-            return m[0];
-        })
-        .domain(scale.domain() as any)
-        .thresholds(scale.ticks(desiredBars))(data.daysAdded.entries() as any);
+    const bins = bin<[number, number], number>()
+        .value((m) => m[0])
+        .domain(scale.domain() as [number, number])
+        .thresholds(scale.ticks(desiredBars))([...data.daysAdded.entries()]) as unknown as Bin<number, number>[];
 
     // empty graph?
     const accessor = getNumericMapBinValue as any;

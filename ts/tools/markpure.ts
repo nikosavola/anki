@@ -4,11 +4,11 @@
 import * as fs from "fs";
 import * as path from "path";
 
-function allFilesInDir(directory): string[] {
+function allFilesInDir(directory: string): string[] {
     let results: string[] = [];
     const list = fs.readdirSync(directory);
 
-    list.forEach(function(file) {
+    list.forEach(function(file: string) {
         file = path.join(directory, file);
         const stat = fs.statSync(file);
 

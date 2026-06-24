@@ -102,6 +102,6 @@ export function numericMap<T>(obj: { [k: string]: T }): Map<number, T> {
     return new Map(Object.entries(obj).map(([k, v]) => [Number(k), v]));
 }
 
-export function getNumericMapBinValue(d: Bin<Map<number, number>, number>): number {
+export function getNumericMapBinValue(d: Bin<[number, number], number>): number {
     return sum(d, (d) => d[1]);
 }

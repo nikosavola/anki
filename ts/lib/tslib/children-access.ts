@@ -67,7 +67,7 @@ class ChildrenAccess<T extends Element> {
         }
 
         const [reference, index] = match;
-        this.parent.insertBefore(element, reference[0]);
+        this.parent.insertBefore(element, (reference as unknown as Node[])[0]);
 
         return index;
     }

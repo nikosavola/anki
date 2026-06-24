@@ -3,7 +3,7 @@
 
 export function isApplePlatform(): boolean {
     // avoid deprecation warning
-    const platform = window.navigator["platform" + ""];
+    const platform = (window.navigator as unknown as Record<string, string>)["platform" + ""];
     return (
         platform.startsWith("Mac")
         || platform.startsWith("iP")

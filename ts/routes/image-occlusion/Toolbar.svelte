@@ -58,7 +58,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     import { fillMask } from "./tools/tool-fill";
     import { getCustomColours, saveCustomColours } from "@generated/backend";
 
-    export let canvas;
+    export let canvas: import("fabric").fabric.Canvas;
     export let iconSize;
     export let activeTool: ActiveTool = "cursor";
     let showAlignTools = false;
@@ -275,7 +275,8 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         {@const active = activeTool == tool.id}
         <IconButton
             class="tool-icon-button {active ? 'active-tool' : ''} {tool.id}"
-            iconSize={iconSize * (tool["iconSizeMult"] ?? 1)}
+            iconSize={iconSize *
+                ((tool as { iconSizeMult?: number }).iconSizeMult ?? 1)}
             tooltip="{tool.tooltip()} ({getPlatformString(tool.shortcut)})"
             {active}
             on:click={() => {

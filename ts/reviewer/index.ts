@@ -1,9 +1,7 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-/* eslint
-@typescript-eslint/no-explicit-any: "off",
- */
+/// <reference types="../mathjax/mathjax-types" />
 
 export { default as $, default as jQuery } from "jquery/dist/jquery";
 
@@ -21,8 +19,6 @@ import { registerPackage } from "@tslib/runtime-require";
 
 import { allImagesLoaded, preloadAnswerImages } from "./images";
 import { preloadResources } from "./preload";
-
-declare const MathJax: any;
 
 type Callback = () => void | Promise<void>;
 

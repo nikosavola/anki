@@ -162,7 +162,10 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     const allContexts = getAllContexts();
 
-    function attachContentEditable(element: Element, { stylesDidLoad }): void {
+    function attachContentEditable(
+        element: Element,
+        { stylesDidLoad }: { stylesDidLoad: Promise<unknown> },
+    ): void {
         (async () => {
             await stylesDidLoad;
 

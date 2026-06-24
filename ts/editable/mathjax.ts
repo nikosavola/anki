@@ -1,10 +1,6 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-/* eslint
-@typescript-eslint/no-explicit-any: "off",
- */
-
 import "mathjax/es5/tex-svg-full";
 
 import mathIcon from "@mdi/svg/svg/math-integral-box.svg?src";
@@ -50,9 +46,9 @@ export function convertMathjax(
         return ["Mathjax Error", String(e)];
     }
 
-    const svg = output.children[0] as SVGElement;
+    const svg = output.children[0] as SVGSVGElement;
 
-    if ((svg as any).viewBox.baseVal.height === 16) {
+    if (svg.viewBox.baseVal.height === 16) {
         return getEmptyIcon(style);
     }
 

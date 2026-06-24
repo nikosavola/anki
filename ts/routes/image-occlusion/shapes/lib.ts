@@ -14,12 +14,12 @@ export function floatToDisplay(number: number): string {
 
 const ANGLE_STEPS = 10000;
 
-export function angleToStored(angle: any): number | null {
+export function angleToStored(angle: unknown): number | null {
     const angleDeg = Number(angle) % 360;
     return Number.isNaN(angleDeg) ? null : Math.round((angleDeg / 360) * ANGLE_STEPS);
 }
 
-export function storedToAngle(x: any): number | null {
+export function storedToAngle(x: unknown): number | null {
     const angleSteps = Number(x) % ANGLE_STEPS;
     return Number.isNaN(angleSteps) ? null : (angleSteps / ANGLE_STEPS) * 360;
 }

@@ -9,7 +9,7 @@
         "types": ["jquery", "jqueryui"],
         "strict": true,
         "isolatedModules": false,
-        "noImplicitAny": false,
+        "noImplicitAny": true,
         "strictNullChecks": false,
         "strictPropertyInitialization": false,
         "noImplicitThis": false,

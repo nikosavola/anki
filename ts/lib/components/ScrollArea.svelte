@@ -24,8 +24,9 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     const callback = (entries: IntersectionObserverEntry[]) => {
         entries.forEach((entry) => {
-            scrollStates[entry.target.getAttribute("data-edge")!] =
-                !entry.isIntersecting;
+            scrollStates[
+                entry.target.getAttribute("data-edge")! as keyof typeof scrollStates
+            ] = !entry.isIntersecting;
         });
     };
 

@@ -15,7 +15,7 @@ export const TEXT_PADDING = 5;
 export const TEXT_FONT_SIZE = 40;
 export const TEXT_COLOR = "#000000";
 
-let _clipboard;
+let _clipboard: fabric.Object;
 
 export const stopDraw = (canvas: fabric.Canvas): void => {
     canvas.off("mouse:down");
@@ -115,26 +115,26 @@ const copyItem = (canvas: fabric.Canvas): void => {
     // may want copy and paste on different moment.
     // and you do not want the changes happened
     // later to reflect on the copy.
-    activeObject.clone(function(cloned) {
+    activeObject.clone(function(cloned: fabric.Object) {
         _clipboard = cloned;
     });
 };
 
 const pasteItem = (canvas: fabric.Canvas): void => {
     // clone again, so you can do multiple copies.
-    _clipboard.clone(function(clonedObj) {
+    _clipboard.clone(function(clonedObj: fabric.Object) {
         canvas.discardActiveObject();
 
         clonedObj.set({
-            left: clonedObj.left + 10,
-            top: clonedObj.top + 10,
+            left: clonedObj.left! + 10,
+            top: clonedObj.top! + 10,
             evented: true,
         });
 
         if (clonedObj.type === "activeSelection") {
             // active selection needs a reference to the canvas.
             clonedObj.canvas = canvas;
-            clonedObj.forEachObject(function(obj) {
+            (clonedObj as fabric.ActiveSelection).forEachObject(function(obj: fabric.Object) {
                 canvas.add(obj);
             });
 
@@ -144,8 +144,8 @@ const pasteItem = (canvas: fabric.Canvas): void => {
             canvas.add(clonedObj);
         }
 
-        _clipboard.top += 10;
-        _clipboard.left += 10;
+        _clipboard.top! += 10;
+        _clipboard.left! += 10;
         canvas.setActiveObject(clonedObj);
         redraw(canvas);
     });
@@ -318,7 +318,7 @@ export const selectAllShapes = (canvas: fabric.Canvas) => {
     redraw(canvas);
 };
 
-export const isPointerInBoundingBox = (pointer): boolean => {
+export const isPointerInBoundingBox = (pointer: { x: number; y: number }): boolean => {
     const boundingBox = getBoundingBox();
     if (boundingBox === undefined) {
         return false;

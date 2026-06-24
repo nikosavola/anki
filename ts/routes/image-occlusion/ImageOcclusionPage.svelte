@@ -20,7 +20,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     ];
 
     let activeTabValue = 1;
-    const tabChange = (tabValue) => {
+    const tabChange = (tabValue: number) => {
         textEditingState.set(tabValue === 2);
         activeTabValue = tabValue;
     };

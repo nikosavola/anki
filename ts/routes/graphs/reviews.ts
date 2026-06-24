@@ -49,7 +49,7 @@ export interface GraphData {
     reviewTime: Map<number, Reviews>;
 }
 
-type BinType = Bin<Map<number, Reviews[]>, number>;
+type BinType = Bin<[number, Reviews], number>;
 
 export function gatherData(data: GraphsResponse): GraphData {
     return { reviewCount: numericMap(data.reviews!.count), reviewTime: numericMap(data.reviews!.time) };
@@ -131,10 +131,10 @@ export function renderReviews(
     }
 
     const sourceMap = showTime ? sourceData.reviewTime : sourceData.reviewCount;
-    const bins = bin()
+    const bins = bin<[number, Reviews], number>()
         .value((m) => m[0])
-        .domain(x.domain() as any)
-        .thresholds(thresholds)(sourceMap.entries() as any);
+        .domain(x.domain() as [number, number])
+        .thresholds(thresholds)([...sourceMap.entries()]) as unknown as Bin<number, number>[];
 
     // empty graph?
     const totalDays = sum(bins, (bin) => bin.length);
@@ -370,11 +370,9 @@ export function renderReviews(
         averageAnswerTimeLabel = tr.statisticsAverageAnswerTimeLabel();
 
         // need to get total review count to calculate average time
-        const countBins = bin()
-            .value((m) => {
-                return m[0];
-            })
-            .domain(x.domain() as any)(sourceData.reviewCount.entries() as any);
+        const countBins = bin<[number, Reviews], number>()
+            .value((m) => m[0])
+            .domain(x.domain() as [number, number])([...sourceData.reviewCount.entries()]);
         const totalReviews = sum(countBins, (bin) => cumulativeBinValue(bin as any, 4));
         const totalSecs = total / 1000;
         const avgSecs = totalSecs / totalReviews;

@@ -11,7 +11,10 @@ import { onPinchZoom } from "./tool-zoom";
 
 export const drawRectangle = (canvas: fabric.Canvas): void => {
     canvas.selectionColor = "rgba(0, 0, 0, 0)";
-    let rect, isDown, origX, origY;
+    let rect: fabric.Rect | undefined;
+    let isDown: boolean;
+    let origX: number;
+    let origY: number;
 
     stopDraw(canvas);
 
@@ -54,7 +57,9 @@ export const drawRectangle = (canvas: fabric.Canvas): void => {
 
     canvas.on("mouse:move", function(o) {
         if (onPinchZoom(o)) {
-            canvas.remove(rect);
+            if (rect) {
+                canvas.remove(rect);
+            }
             canvas.renderAll();
             return;
         }
@@ -67,20 +72,20 @@ export const drawRectangle = (canvas: fabric.Canvas): void => {
         const y = pointer.y;
 
         if (x < origX) {
-            rect.set({ originX: "right" });
+            rect!.set({ originX: "right" });
         } else {
-            rect.set({ originX: "left" });
+            rect!.set({ originX: "left" });
         }
 
         if (y < origY) {
-            rect.set({ originY: "bottom" });
+            rect!.set({ originY: "bottom" });
         } else {
-            rect.set({ originY: "top" });
+            rect!.set({ originY: "top" });
         }
 
-        rect.set({
-            width: Math.abs(x - rect.left),
-            height: Math.abs(y - rect.top),
+        rect!.set({
+            width: Math.abs(x - rect!.left!),
+            height: Math.abs(y - rect!.top!),
         });
 
         canvas.renderAll();
@@ -92,7 +97,7 @@ export const drawRectangle = (canvas: fabric.Canvas): void => {
         if (!rect) {
             return;
         }
-        if (rect.width < 5 || rect.height < 5) {
+        if (rect.width! < 5 || rect.height! < 5) {
             canvas.remove(rect);
             rect = undefined;
             return;
@@ -101,14 +106,14 @@ export const drawRectangle = (canvas: fabric.Canvas): void => {
         if (rect.originX === "right") {
             rect.set({
                 originX: "left",
-                left: rect.left - rect.width + rect.strokeWidth,
+                left: rect.left! - rect.width! + rect.strokeWidth!,
             });
         }
 
         if (rect.originY === "bottom") {
             rect.set({
                 originY: "top",
-                top: rect.top - rect.height + rect.strokeWidth,
+                top: rect.top! - rect.height! + rect.strokeWidth!,
             });
         }
 

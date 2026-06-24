@@ -465,7 +465,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         isIOImageLoaded = true;
     }
 
-    function setImageField(html) {
+    function setImageField(html: string) {
         fieldStores[ioFields.image].set(html);
     }
     globalThis.setImageField = setImageField;
@@ -481,7 +481,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     function resetIOImageLoaded() {
         isIOImageLoaded = false;
         globalThis.canvas.clear();
-        globalThis.canvas = undefined;
+        globalThis.canvas = undefined as unknown as typeof globalThis.canvas;
         if (imageOcclusionMode?.kind === "add") {
             // canvas.clear indirectly calls saveOcclusions
             saveFieldNow();

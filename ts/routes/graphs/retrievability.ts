@@ -57,12 +57,10 @@ export function prepareData(
 
     const [scale, ticks] = getAdjustedScaleAndTicks(xMin, xMax, desiredBars);
 
-    const bins = bin()
-        .value((m) => {
-            return m[0];
-        })
+    const bins = bin<[number, number], number>()
+        .value((m) => m[0])
         .domain(scale.domain() as [number, number])
-        .thresholds(ticks)(allEases.entries() as any);
+        .thresholds(ticks)([...allEases.entries()]) as unknown as Bin<number, number>[];
     const total = sum(bins as any, getNumericMapBinValue);
 
     const colourScale = scaleSequential(interpolateRdYlGn).domain([0, 100]);

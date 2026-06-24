@@ -45,10 +45,10 @@ export const zoomIn = (canvas: fabric.Canvas): void => {
     redraw(canvas);
 };
 
-export const zoomOut = (canvas): void => {
+export const zoomOut = (canvas: fabric.Canvas): void => {
     let zoom = canvas.getZoom();
     zoom = Math.max(minScale, zoom / 1.1);
-    canvas.zoomToPoint({ x: canvas.width / 2, y: canvas.height / 2 }, zoom / 1.1);
+    canvas.zoomToPoint({ x: canvas.width! / 2, y: canvas.height! / 2 }, zoom / 1.1);
     constrainBoundsAroundBgImage(canvas);
     redraw(canvas);
 };
@@ -68,7 +68,7 @@ const zoomResetInner = (canvas: fabric.Canvas): void => {
 export const enablePinchZoom = (canvas: fabric.Canvas) => {
     const hammer = new Hammer(upperCanvasElement(canvas));
     hammer.get("pinch").set({ enable: true });
-    hammer.on("pinchin pinchout", ev => {
+    hammer.on("pinchin pinchout", (ev: HammerInput) => {
         currentScale = Math.min(Math.max(minScale, ev.scale * zoomScale), maxScale);
         canvas.zoomToPoint({ x: canvas.width! / 2, y: canvas.height! / 2 }, currentScale);
         constrainBoundsAroundBgImage(canvas);
@@ -94,31 +94,31 @@ export const onResize = (canvas: fabric.Canvas) => {
     zoomReset(canvas);
 };
 
-const onMouseWheel = (opt) => {
+const onMouseWheel = (opt: fabric.IEvent) => {
     const canvas = globalThis.canvas;
-    const delta = opt.e.deltaY;
+    const delta = (opt.e as WheelEvent).deltaY;
     let zoom = canvas.getZoom();
     zoom *= 0.999 ** delta;
     zoom = Math.max(minScale, Math.min(zoom, maxScale));
-    canvas.zoomToPoint({ x: opt.pointer.x, y: opt.pointer.y }, zoom);
+    canvas.zoomToPoint({ x: opt.pointer!.x, y: opt.pointer!.y }, zoom);
     opt.e.preventDefault();
     opt.e.stopPropagation();
     constrainBoundsAroundBgImage(canvas);
     redraw(canvas);
 };
 
-const onMouseDown = (opt) => {
+const onMouseDown = (opt: fabric.IEvent) => {
     const canvas = globalThis.canvas;
     canvas.discardActiveObject();
     const { e } = opt;
-    const clientX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
-    const clientY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
+    const clientX = e.type === "touchstart" ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX;
+    const clientY = e.type === "touchstart" ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
     canvas.lastPosX = clientX;
     canvas.lastPosY = clientY;
     redraw(canvas);
 };
 
-export const onMouseMove = (opt) => {
+export const onMouseMove = (opt: fabric.IEvent) => {
     const canvas = globalThis.canvas;
     canvas.discardActiveObject();
     if (!canvas.viewportTransform) {
@@ -133,21 +133,21 @@ export const onMouseMove = (opt) => {
     onDrag(canvas, opt);
 };
 
-export const onPinchZoom = (opt): boolean => {
+export const onPinchZoom = (opt: fabric.IEvent): boolean => {
     const { e } = opt;
     const canvas = globalThis.canvas;
-    if ((e.type === "touchmove") && (e.touches.length > 1)) {
+    if ((e.type === "touchmove") && ((e as TouchEvent).touches.length > 1)) {
         onDrag(canvas, opt);
         return true;
     }
     return false;
 };
 
-const onDrag = (canvas, opt) => {
+const onDrag = (canvas: fabric.Canvas, opt: fabric.IEvent) => {
     const { e } = opt;
-    const clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
-    const clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
-    const vpt = canvas.viewportTransform;
+    const clientX = e.type === "touchmove" ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX;
+    const clientY = e.type === "touchmove" ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
+    const vpt = canvas.viewportTransform!;
 
     vpt[4] += clientX - canvas.lastPosX;
     vpt[5] += clientY - canvas.lastPosY;
@@ -187,7 +187,7 @@ export const onWheelDragX = (canvas: fabric.Canvas, event: WheelEvent) => {
 
 const onMouseUp = () => {
     const canvas = globalThis.canvas;
-    canvas.setViewportTransform(canvas.viewportTransform);
+    canvas.setViewportTransform(canvas.viewportTransform!);
     constrainBoundsAroundBgImage(canvas);
     redraw(canvas);
 };

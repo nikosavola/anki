@@ -37,7 +37,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         },
     ];
 
-    const textFormat = (tool: { name; title; icon; action }) => {
+    const textFormat = (tool: { name: string; action: string }) => {
         execCommand(tool.action, false, tool.name);
     };
 </script>

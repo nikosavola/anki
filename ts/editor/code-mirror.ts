@@ -78,10 +78,8 @@ export function openCodeMirror(
     }: Partial<OpenCodeMirrorOptions>): void {
         if (editor) {
             for (const key in configuration) {
-                editor.setOption(
-                    key as keyof CodeMirror.EditorConfiguration,
-                    configuration[key],
-                );
+                const optionKey = key as keyof CodeMirror.EditorConfiguration;
+                editor.setOption(optionKey, configuration[optionKey] as never);
             }
         } else if (!hidden) {
             editor = CodeMirror.fromTextArea(textarea, configuration);

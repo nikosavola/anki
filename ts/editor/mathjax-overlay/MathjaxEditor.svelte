@@ -82,7 +82,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
             ): void => {
                 const { anchor } = obj.ranges[0];
 
-                if (anchor["hitSide"]) {
+                if ((anchor as unknown as { hitSide?: boolean }).hitSide) {
                     if (instance.getValue().length === 0) {
                         if (direction) {
                             dispatch(`moveout${direction}`);

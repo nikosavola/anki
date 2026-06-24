@@ -9,6 +9,8 @@ function packagesForLoading(packages: string[]): string[] {
     return packages.map((value: string): string => `[tex]/${value}`);
 }
 
+// MathJax replaces this configuration object with its live API once it loads,
+// so we assign the config shape here and read the runtime members elsewhere.
 window.MathJax = {
     tex: {
         displayMath: [["\\[", "\\]"]],
@@ -29,4 +31,4 @@ window.MathJax = {
     startup: {
         typeset: false,
     },
-};
+} as unknown as MathJaxObject;

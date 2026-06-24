@@ -23,7 +23,7 @@ export function extractShapesFromClozedField(
         for (const shape of occlusion.shapes) {
             if (isValidType(shape.shape)) {
                 const props: Record<string, any> = Object.fromEntries(
-                    shape.properties.map(prop => [prop.name, prop.value]),
+                    shape.properties.map((prop: { name: string; value: string }) => [prop.name, prop.value]),
                 );
                 props.ordinal = occlusion.ordinal;
                 group.push(buildShape(shape.shape, props));
@@ -113,9 +113,9 @@ function buildShape(type: ShapeType, props: Record<string, any>): Shape {
         }
         case "polygon": {
             if (props.points !== "") {
-                props.points = props.points.split(" ").map((point) => {
+                props.points = props.points.split(" ").map((point: string) => {
                     const [x, y] = point.split(",");
-                    return new Point({ x, y });
+                    return new Point({ x: Number(x), y: Number(y) });
                 });
             } else {
                 props.points = [new Point({ x: 0, y: 0 })];

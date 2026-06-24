@@ -10,7 +10,8 @@ export function clearableArray<T>(): (T & Destroyable)[] {
 
     return new Proxy(list, {
         get: function(target: (T & Destroyable)[], prop: string | symbol) {
-            if (!(typeof prop === "symbol") && !isNaN(Number(prop)) && !target[prop]) {
+            const indexable = target as unknown as Record<string | symbol, T & Destroyable>;
+            if (!(typeof prop === "symbol") && !isNaN(Number(prop)) && !indexable[prop]) {
                 const item = {} as T & Destroyable;
 
                 const destroy = (): void => {
@@ -18,18 +19,18 @@ export function clearableArray<T>(): (T & Destroyable)[] {
                     list.splice(index, 1);
                 };
 
-                target[prop] = new Proxy(item, {
+                indexable[prop] = new Proxy(item, {
                     get: function(target: T & Destroyable, prop: string | symbol) {
                         if (prop === "destroy") {
                             return destroy;
                         }
 
-                        return target[prop];
+                        return (target as unknown as Record<string | symbol, unknown>)[prop];
                     },
                 });
             }
 
-            return target[prop];
+            return indexable[prop];
         },
     });
 }

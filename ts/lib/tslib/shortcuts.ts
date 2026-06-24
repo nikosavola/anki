@@ -60,7 +60,7 @@ export function getPlatformString(keyCombinationString: string): string {
 
 function checkKey(event: KeyboardEvent, key: number): boolean {
     // avoid deprecation warning
-    const which = event["which" + ""];
+    const which = (event as unknown as Record<string, number>)["which" + ""];
     return which === key;
 }
 
@@ -102,7 +102,7 @@ const check =
     };
 
 function keyToCode(key: string): number {
-    return keyCodeLookup[key] || key.toUpperCase().charCodeAt(0);
+    return keyCodeLookup[key as keyof typeof keyCodeLookup] || key.toUpperCase().charCodeAt(0);
 }
 
 function keyCombinationToCheck(

@@ -44,7 +44,7 @@ export function registerPackageRaw(
     name: string,
     entries: Record<string, unknown>,
 ): void {
-    runtimePackages[name] = entries;
+    runtimePackages[name as AnkiPackages] = entries;
 }
 
 export function registerPackage<

@@ -11,7 +11,10 @@ import { onPinchZoom } from "./tool-zoom";
 
 export const drawEllipse = (canvas: fabric.Canvas): void => {
     canvas.selectionColor = "rgba(0, 0, 0, 0)";
-    let ellipse, isDown, origX, origY;
+    let ellipse: fabric.Ellipse | undefined;
+    let isDown: boolean;
+    let origX: number;
+    let origY: number;
 
     stopDraw(canvas);
 
@@ -53,7 +56,9 @@ export const drawEllipse = (canvas: fabric.Canvas): void => {
 
     canvas.on("mouse:move", function(o) {
         if (onPinchZoom(o)) {
-            canvas.remove(ellipse);
+            if (ellipse) {
+                canvas.remove(ellipse);
+            }
             canvas.renderAll();
             return;
         }
@@ -67,26 +72,26 @@ export const drawEllipse = (canvas: fabric.Canvas): void => {
         const x = pointer.x;
         const y = pointer.y;
 
-        if (rx > ellipse.strokeWidth) {
-            rx -= ellipse.strokeWidth / 2;
+        if (rx > ellipse!.strokeWidth!) {
+            rx -= ellipse!.strokeWidth! / 2;
         }
-        if (ry > ellipse.strokeWidth) {
-            ry -= ellipse.strokeWidth / 2;
+        if (ry > ellipse!.strokeWidth!) {
+            ry -= ellipse!.strokeWidth! / 2;
         }
 
         if (x < origX) {
-            ellipse.set({ originX: "right" });
+            ellipse!.set({ originX: "right" });
         } else {
-            ellipse.set({ originX: "left" });
+            ellipse!.set({ originX: "left" });
         }
 
         if (y < origY) {
-            ellipse.set({ originY: "bottom" });
+            ellipse!.set({ originY: "bottom" });
         } else {
-            ellipse.set({ originY: "top" });
+            ellipse!.set({ originY: "top" });
         }
 
-        ellipse.set({ rx: rx, ry: ry });
+        ellipse!.set({ rx: rx, ry: ry });
 
         canvas.renderAll();
     });
@@ -97,7 +102,7 @@ export const drawEllipse = (canvas: fabric.Canvas): void => {
         if (!ellipse) {
             return;
         }
-        if (ellipse.width < 5 || ellipse.height < 5) {
+        if (ellipse.width! < 5 || ellipse.height! < 5) {
             canvas.remove(ellipse);
             ellipse = undefined;
             return;
@@ -106,14 +111,14 @@ export const drawEllipse = (canvas: fabric.Canvas): void => {
         if (ellipse.originX === "right") {
             ellipse.set({
                 originX: "left",
-                left: ellipse.left - ellipse.width + ellipse.strokeWidth,
+                left: ellipse.left! - ellipse.width! + ellipse.strokeWidth!,
             });
         }
 
         if (ellipse.originY === "bottom") {
             ellipse.set({
                 originY: "top",
-                top: ellipse.top - ellipse.height + ellipse.strokeWidth,
+                top: ellipse.top! - ellipse.height! + ellipse.strokeWidth!,
             });
         }
 

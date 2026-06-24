@@ -171,7 +171,7 @@ const setupBoundingBox = (canvas: fabric.Canvas, size: Size): fabric.Rect => {
     return boundingBox;
 };
 
-const getImageData = (imageData, path): string => {
+const getImageData = (imageData: Uint8Array, path: string): string => {
     const b64encoded = protoBase64.enc(imageData);
     const extension = path.split(".").pop();
     const mimeTypes = {
@@ -184,14 +184,14 @@ const getImageData = (imageData, path): string => {
         "png": "png",
     };
 
-    const type = mimeTypes[extension] || "png";
+    const type = mimeTypes[extension as keyof typeof mimeTypes] || "png";
     return `data:image/${type};base64,${b64encoded}`;
 };
 
 const addClozeNotesToTextEditor = (header: string, backExtra: string, tags: string[]) => {
     const noteFieldsData: { id: string; title: string; divValue: string; textareaValue: string }[] = get(
         notesDataStore,
-    );
+    ) ?? [];
     noteFieldsData[0].divValue = header;
     noteFieldsData[1].divValue = backExtra;
     noteFieldsData[0].textareaValue = header;
