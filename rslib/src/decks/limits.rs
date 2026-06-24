@@ -389,10 +389,13 @@ impl LimitTreeMap {
     }
 
     fn cap_node_and_descendants(&mut self, node_id: &NodeId, limits: RemainingLimits) {
-        let node = self.tree.get_mut(node_id).unwrap();
-        node.data_mut().limits.cap_to(limits);
-        for child_id in node.children().clone() {
-            self.cap_node_and_descendants(&child_id, limits);
+        // Collect the subtree's ids in one pass so we allocate a single Vec for
+        // the whole subtree, rather than cloning each node's children Vec while
+        // recursing. The same `limits` are applied to the node and every
+        // descendant, so a flat pre-order walk is equivalent to the recursion.
+        let subtree_ids: Vec<NodeId> = self.tree.traverse_pre_order_ids(node_id).unwrap().collect();
+        for id in subtree_ids {
+            self.tree.get_mut(&id).unwrap().data_mut().limits.cap_to(limits);
         }
     }
 }
