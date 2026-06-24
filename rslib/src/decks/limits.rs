@@ -219,8 +219,10 @@ pub(crate) struct LimitTreeMap {
     /// A tree representing the remaining limits of the active deck hierarchy.
     //
     // As long as we never (1) allow a tree without a root, (2) remove nodes,
-    // and (3) have more than 1 tree, it's safe to unwrap on Tree::get() and
-    // Tree::root_node_id(), even if we clone Nodes.
+    // and (3) have more than 1 tree, accesses via Tree::get() and
+    // Tree::root_node_id() are expected to succeed. Rather than panicking if
+    // those invariants are ever violated (e.g. by a corrupt database or a
+    // future change), the accessors below surface an error instead.
     tree: Tree<NodeLimits>,
     /// A map to access the tree node of a deck.
     map: HashMap<DeckId, NodeId>,
@@ -233,15 +235,16 @@ impl LimitTreeMap {
         config: &HashMap<DeckConfigId, DeckConfig>,
         today: u32,
         new_cards_ignore_review_limit: bool,
-    ) -> Self {
-        let root_limits = NodeLimits::new(&decks[0], config, today, new_cards_ignore_review_limit);
+    ) -> Result<Self> {
+        let root_deck = decks.first().or_invalid("no decks provided")?;
+        let root_limits = NodeLimits::new(root_deck, config, today, new_cards_ignore_review_limit);
         let mut tree = Tree::new();
         let root_id = tree
             .insert(Node::new(root_limits), InsertBehavior::AsRoot)
-            .unwrap();
+            .or_invalid("failed to insert root node")?;
 
         let mut map = HashMap::new();
-        map.insert(decks[0].id, root_id.clone());
+        map.insert(root_deck.id, root_id.clone());
 
         let mut limits = Self { tree, map };
         let mut remaining_decks = decks[1..].iter().peekable();
@@ -251,9 +254,9 @@ impl LimitTreeMap {
             config,
             today,
             new_cards_ignore_review_limit,
-        );
+        )?;
 
-        limits
+        Ok(limits)
     }
 
     /// Recursively appends descendants to the provided parent [Node], and adds
@@ -268,8 +271,12 @@ impl LimitTreeMap {
         config: &HashMap<DeckConfigId, DeckConfig>,
         today: u32,
         new_cards_ignore_review_limit: bool,
-    ) {
-        let parent = *self.tree.get(&parent_node_id).unwrap().data();
+    ) -> Result<()> {
+        let parent = *self
+            .tree
+            .get(&parent_node_id)
+            .or_invalid("missing tree node")?
+            .data();
         while let Some(deck) = remaining_decks.peek() {
             match deck.name.components().count() {
                 l if l <= parent.level => {
@@ -284,7 +291,7 @@ impl LimitTreeMap {
                         config,
                         today,
                         new_cards_ignore_review_limit,
-                    );
+                    )?;
                     remaining_decks.next();
                 }
                 _ => {
@@ -292,7 +299,7 @@ impl LimitTreeMap {
                     if let Some(last_child_node_id) = self
                         .tree
                         .get(&parent_node_id)
-                        .unwrap()
+                        .or_invalid("missing tree node")?
                         .children()
                         .last()
                         .cloned()
@@ -303,7 +310,7 @@ impl LimitTreeMap {
                             config,
                             today,
                             new_cards_ignore_review_limit,
-                        )
+                        )?
                     } else {
                         // immediate parent is missing, skip the deck until a DB check is run
                         remaining_decks.next();
@@ -311,6 +318,7 @@ impl LimitTreeMap {
                 }
             }
         }
+        Ok(())
     }
 
     fn insert_child_node(
@@ -320,20 +328,21 @@ impl LimitTreeMap {
         config: &HashMap<DeckConfigId, DeckConfig>,
         today: u32,
         new_cards_ignore_review_limit: bool,
-    ) {
+    ) -> Result<()> {
         let mut child_limits =
             NodeLimits::new(child_deck, config, today, new_cards_ignore_review_limit);
         child_limits
             .limits
-            .cap_to(self.get_node_limits(&parent_node_id));
+            .cap_to(self.get_node_limits(&parent_node_id)?);
         let child_node_id = self
             .tree
             .insert(
                 Node::new(child_limits),
                 InsertBehavior::UnderNode(&parent_node_id),
             )
-            .unwrap();
+            .or_invalid("failed to insert child node")?;
         self.map.insert(child_deck.id, child_node_id);
+        Ok(())
     }
 
     fn get_node_id(&self, deck_id: DeckId) -> Result<&NodeId> {
@@ -342,21 +351,27 @@ impl LimitTreeMap {
             .or_invalid("deck not found in limits map")
     }
 
-    fn get_node_limits(&self, node_id: &NodeId) -> RemainingLimits {
-        self.tree.get(node_id).unwrap().data().limits
+    fn get_node_limits(&self, node_id: &NodeId) -> Result<RemainingLimits> {
+        Ok(self
+            .tree
+            .get(node_id)
+            .or_invalid("missing tree node")?
+            .data()
+            .limits)
     }
 
     fn get_deck_limits(&self, deck_id: DeckId) -> Result<RemainingLimits> {
-        self.get_node_id(deck_id)
-            .map(|node_id| self.get_node_limits(node_id))
+        let node_id = self.get_node_id(deck_id)?;
+        self.get_node_limits(node_id)
     }
 
-    fn get_root_limits(&self) -> RemainingLimits {
-        self.get_node_limits(self.tree.root_node_id().unwrap())
+    fn get_root_limits(&self) -> Result<RemainingLimits> {
+        let root_id = self.tree.root_node_id().or_invalid("missing root node")?;
+        self.get_node_limits(root_id)
     }
 
-    pub(crate) fn root_limit_reached(&self, kind: LimitKind) -> bool {
-        self.get_root_limits().get(kind) == 0
+    pub(crate) fn root_limit_reached(&self, kind: LimitKind) -> Result<bool> {
+        Ok(self.get_root_limits()?.get(kind) == 0)
     }
 
     pub(crate) fn limit_reached(&self, deck_id: DeckId, kind: LimitKind) -> Result<bool> {
@@ -369,30 +384,35 @@ impl LimitTreeMap {
         kind: LimitKind,
     ) -> Result<()> {
         let node_id = self.get_node_id(deck_id)?.clone();
-        self.decrement_node_and_parent_limits(&node_id, kind);
-        Ok(())
+        self.decrement_node_and_parent_limits(&node_id, kind)
     }
 
-    fn decrement_node_and_parent_limits(&mut self, node_id: &NodeId, kind: LimitKind) {
-        let node = self.tree.get_mut(node_id).unwrap();
+    fn decrement_node_and_parent_limits(&mut self, node_id: &NodeId, kind: LimitKind) -> Result<()> {
+        let node = self.tree.get_mut(node_id).or_invalid("missing tree node")?;
         let parent = node.parent().cloned();
 
         let limits = &mut node.data_mut().limits;
         if limits.decrement(kind).count_reached_zero {
             let limits = *limits;
-            self.cap_node_and_descendants(node_id, limits);
+            self.cap_node_and_descendants(node_id, limits)?;
         };
 
         if let Some(parent_id) = parent {
-            self.decrement_node_and_parent_limits(&parent_id, kind)
+            self.decrement_node_and_parent_limits(&parent_id, kind)?;
         }
+        Ok(())
     }
 
-    fn cap_node_and_descendants(&mut self, node_id: &NodeId, limits: RemainingLimits) {
-        let node = self.tree.get_mut(node_id).unwrap();
+    fn cap_node_and_descendants(
+        &mut self,
+        node_id: &NodeId,
+        limits: RemainingLimits,
+    ) -> Result<()> {
+        let node = self.tree.get_mut(node_id).or_invalid("missing tree node")?;
         node.data_mut().limits.cap_to(limits);
         for child_id in node.children().clone() {
-            self.cap_node_and_descendants(&child_id, limits);
+            self.cap_node_and_descendants(&child_id, limits)?;
         }
+        Ok(())
     }
 }

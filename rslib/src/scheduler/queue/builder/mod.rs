@@ -144,7 +144,7 @@ impl QueueBuilder {
             &config_map,
             timing.days_elapsed,
             new_cards_ignore_review_limit,
-        );
+        )?;
         let sort_options = sort_options(&root_deck, &config_map);
         let deck_map = col.storage.get_decks_map()?;
 

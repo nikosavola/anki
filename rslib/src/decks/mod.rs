@@ -160,7 +160,7 @@ impl Collection {
     pub fn get_or_create_normal_deck(&mut self, human_name: &str) -> Result<Deck> {
         let name = NativeDeckName::from_human_name(human_name);
         if let Some(did) = self.storage.get_deck_id(name.as_native_str())? {
-            self.storage.get_deck(did).map(|opt| opt.unwrap())
+            self.storage.get_deck(did)?.or_not_found(did)
         } else {
             let mut deck = Deck::new_normal();
             deck.name = name;
